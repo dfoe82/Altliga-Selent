@@ -304,6 +304,13 @@ textarea{min-height:84px;resize:vertical}
 .pos .pr{font-size:9.5px;color:#ffffffd9;font-weight:700;letter-spacing:.06em}
 .bench{display:flex;flex-wrap:wrap;gap:6px}
 .bench span{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 3px;font-size:13px;font-weight:600}
+.bench button{display:inline-flex;align-items:center;gap:6px;border:1px dashed var(--line);border-radius:999px;padding:3px 10px 3px 3px;font-size:13px;font-weight:600;background:var(--surface)}
+.pitch.freeedit .pos.drag{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;z-index:2}
+.pitch.freeedit .pos.drag.sel .dp{outline:3px solid #fff;outline-offset:2px}
+.pos.dragging{z-index:6;cursor:grabbing}
+.pos.dragging .dp{transform:scale(1.15)}
+.pos.out{opacity:.45}
+.freebar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13.5px;min-height:34px}
 .bench .nr{width:24px;height:24px;font-size:13px;border-radius:50%}
 .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px}
 .slot{display:grid;grid-template-columns:46px 1fr;gap:6px;align-items:center}
@@ -509,6 +516,16 @@ const PRESETS=[
   {n:'Rot · Schwarz',c:['#B5121B','#111111','#F2B705','#5C6670']}
 ];
 /* Spielsysteme: Position, x %, y % (eigenes Tor unten) */
+const FREE='Frei';
+const isFree=sq=>!!sq&&sq.formation===FREE;
+/* Wer steht auf dem Feld? Bei „Frei“ alle mit Position, sonst die besetzten Positionen */
+const starterIds=sq=>!sq?[]:isFree(sq)?Object.keys(sq.free||{}).filter(id=>sq.ids.includes(id)):Object.values(sq.slots||{}).filter(id=>sq.ids.includes(id));
+function freeSpot(sq){
+  const used=Object.values(sq.free||{});
+  const cand=[...FORMS['4-4-2'].map(c=>[c[1],c[2]]),[50,34],[50,62],[26,58],[74,58],[50,8]];
+  for(const [x,y] of cand) if(!used.some(u=>Math.hypot(u.x-x,u.y-y)<9)) return {x,y};
+  return {x:50,y:50};
+}
 const FORMS={
   '4-4-2':[['TW',50,90],['LV',14,70],['IV',37,74],['IV',63,74],['RV',86,70],['LM',14,46],['ZM',37,50],['ZM',63,50],['RM',86,46],['ST',36,19],['ST',64,19]],
   '4-3-3':[['TW',50,90],['LV',14,70],['IV',37,74],['IV',63,74],['RV',86,70],['ZM',27,50],['ZM',50,55],['ZM',73,50],['LA',16,24],['ST',50,16],['RA',84,24]],
@@ -1493,8 +1510,8 @@ function squadLine(e){
   if(e.type!=='game') return '';
   const sq=e.squad, n=sq?sq.ids.filter(pById).length:0;
   if(!n&&!can('events')) return '';
-  const set=sq?Object.values(sq.slots||{}).filter(id=>sq.ids.includes(id)&&pById(id)).length:0;
-  return `<div class="sq"><span>${n?`<b>Kader ${n}</b> · ${esc(sq.formation)} · ${set} von ${FORMS[sq.formation].length} besetzt`:'Noch kein Kader'}</span>
+  const set=sq?starterIds(sq).filter(pById).length:0;
+  return `<div class="sq"><span>${n?`<b>Kader ${n}</b> · ${isFree(sq)?`Frei · ${set} auf dem Feld`:`${esc(sq.formation)} · ${set} von ${FORMS[sq.formation].length} besetzt`}`:'Noch kein Kader'}</span>
     <button class="btn sm" data-act="lineup" data-v="${e.id}">${n?'Kader & Aufstellung':'Kader anlegen'}</button></div>`;
 }
 /* ---------- Einteilung (Aufbau, Abbau, Bierstand …) ---------- */
@@ -1654,7 +1671,7 @@ function statsView(){
   const n=evs.length;
   const rows=sorted().map(p=>{let zu=0,ab=0,vl=0,no=0,kader=0,start=0;
     evs.forEach(e=>{const v=(e.poll.votes||{})[p.id]; if(v===0)zu++; else if(v===1)ab++; else if(v===2)vl++; else no++;
-      if(g&&e.squad&&e.squad.ids.includes(p.id)){kader++; if(Object.values(e.squad.slots||{}).includes(p.id)) start++;}});
+      if(g&&e.squad&&e.squad.ids.includes(p.id)){kader++; if(starterIds(e.squad).includes(p.id)) start++;}});
     return {p,zu,ab,vl,no,kader,start,q:n?zu/n:0};}).sort((a,b)=>b.q-a.q||a.p.name.localeCompare(b.p.name,'de'));
   const sumZu=rows.reduce((a,r)=>a+r.zu,0), answered=rows.reduce((a,r)=>a+r.zu+r.ab+r.vl,0);
   const pct=x=>Math.round(x*100)+' %';
@@ -1723,33 +1740,42 @@ function lineupView(){
   const e=S.events.find(x=>x.id===ui.lineup); if(!e){ui.lineup=null;return eventsView();}
   const adm=can('events');
   const sq=e.squad||{ids:[],formation:'4-4-2',slots:{}};
-  const ids=sq.ids.filter(pById), pos=FORMS[sq.formation]||FORMS['4-4-2'];
+  const free=isFree(sq), ids=sq.ids.filter(pById), pos=free?[]:(FORMS[sq.formation]||FORMS['4-4-2']);
   const slotOf=i=>{const id=(sq.slots||{})[i]; return id&&ids.includes(id)?pById(id):null;};
-  const starters=new Set(pos.map((_,i)=>slotOf(i)).filter(Boolean).map(p=>p.id));
+  const starters=new Set(free?starterIds(sq).filter(pById):pos.map((_,i)=>slotOf(i)).filter(Boolean).map(p=>p.id));
+  if(!starters.has(ui.freeSel)) ui.freeSel=null;
   const bench=ids.map(pById).filter(p=>!starters.has(p.id)).sort((a,b)=>a.name.localeCompare(b.name,'de'));
   const head=`<div class="panel" style="${secStyle('events')}">
     <button class="back" data-act="lineupBack">‹ Termine</button>
     <div><h2>${esc(evTitle(e))}</h2><p class="hint">${wd(e.date)}, ${fmtDate(e.date)}${e.time?' · '+e.time+' Uhr':''}${e.place?' · '+esc(e.place):''}</p></div>
   </div>`;
   if(ui.form&&adm) return head+`<div class="panel form" style="${secStyle('events')}"><h2>Kader festlegen</h2>${picker()}${saveBar('saveSquad')}</div>`;
-  const pitch=`<div class="pitch" role="img" aria-label="Aufstellung ${esc(sq.formation)}">
-    <span class="pl half"></span><span class="pl circ"></span><span class="pl boxt"></span><span class="pl boxb"></span>
+  const lines='<span class="pl half"></span><span class="pl circ"></span><span class="pl boxt"></span><span class="pl boxb"></span>';
+  const freeEdit=free&&adm;
+  const pitch=free?`<div class="pitch ${freeEdit?'freeedit':''}" id="fPitch" ${freeEdit?'':'role="img" aria-label="Freie Aufstellung"'}>${lines}
+    ${[...starters].map(id=>{const p=pById(id), c=sq.free[id]; return `<div class="pos ${freeEdit?'drag':''} ${ui.freeSel===id?'sel':''}" data-pid="${id}" style="left:${c.x}%;top:${c.y}%">
+      <span class="dp">${esc(p.nr||initials(p.name))}</span><span class="pn">${esc(p.name)}</span></div>`;}).join('')}
+  </div>`:`<div class="pitch" role="img" aria-label="Aufstellung ${esc(sq.formation)}">
+    ${lines}
     ${pos.map(([code,x,y],i)=>{const p=slotOf(i); return `<div class="pos" style="left:${x}%;top:${y}%">
       <span class="dp ${p?'':'empty'}">${p?esc(p.nr||initials(p.name)):''}</span>
       <span class="pn">${p?esc(p.name):'–'}</span><span class="pr">${code}</span></div>`;}).join('')}
   </div>`;
   const editor=adm?`<div class="panel" style="${secStyle('events')}">
       <div class="row spread"><h2>Aufstellung bearbeiten</h2><button class="btn ghost sm" data-act="editSquad">Kader ändern (${ids.length})</button></div>
-      <label class="f" style="max-width:220px">Spielsystem<select id="lFormation">${Object.keys(FORMS).map(f=>`<option ${f===sq.formation?'selected':''}>${f}</option>`).join('')}</select></label>
-      ${ids.length?`<div class="slots">${pos.map(([code],i)=>{const cur=slotOf(i); return `<label class="slot"><b>${code}</b><select data-slot="${i}" aria-label="Position ${code}">
+      <label class="f" style="max-width:280px">Spielsystem<select id="lFormation">${Object.keys(FORMS).map(f=>`<option ${f===sq.formation?'selected':''}>${f}</option>`).join('')}<option value="${FREE}" ${free?'selected':''}>Frei – selbst positionieren</option></select></label>
+      ${free?`<p class="hint">Spieler auf dem Feld mit dem Finger an die gewünschte Stelle ziehen. Aus der Ersatzbank antippen, um jemanden aufs Feld zu holen. Zum Herausnehmen antippen und „Auf die Bank“ wählen oder vom Feld ziehen.</p>
+        ${starters.size?'<button class="edit" style="justify-self:start" data-act="freeClear">Alle auf die Bank</button>':''}`
+      :ids.length?`<div class="slots">${pos.map(([code],i)=>{const cur=slotOf(i); return `<label class="slot"><b>${code}</b><select data-slot="${i}" aria-label="Position ${code}">
         <option value="">– frei –</option>${ids.map(pById).sort((a,b)=>a.name.localeCompare(b.name,'de')).map(p=>`<option value="${p.id}" ${cur&&cur.id===p.id?'selected':''}>${p.nr?p.nr+' · ':''}${esc(p.name)}${starters.has(p.id)&&!(cur&&cur.id===p.id)?' (gesetzt)':''}</option>`).join('')}</select></label>`;}).join('')}</div>
       <p class="hint">Wer schon auf einer Position steht und neu zugeordnet wird, wechselt automatisch dorthin.</p>`:'<p class="hint">Lege zuerst den Kader fest.</p>'}
       ${ui.confirmDel==='squad'?confirmBox('squad:'+e.id,'Kader und Aufstellung','Entfernen?','Entfernen'):(ids.length?'<button class="edit" style="justify-self:start" data-act="askDel" data-v="squad">Kader und Aufstellung entfernen</button>':'')}
     </div>`:'';
   return head+`<div class="panel" style="${secStyle('events')}">
-      <div class="row spread"><h2>Aufstellung · ${esc(sq.formation)}</h2><span class="hint">${starters.size} von ${pos.length}</span></div>
+      <div class="row spread"><h2>Aufstellung · ${free?'Frei':esc(sq.formation)}</h2><span class="hint">${free?`${starters.size} auf dem Feld${starters.size>11?' (mehr als 11)':''}`:`${starters.size} von ${pos.length}`}</span></div>
       ${ids.length?pitch:'<p class="hint">Für dieses Spiel gibt es noch keinen Kader.</p>'}
-      ${ids.length?`<h3>Ersatzbank · ${bench.length}</h3>${bench.length?`<div class="bench">${bench.map(p=>`<span>${nrBox(p)}${esc(p.name)}</span>`).join('')}</div>`:'<p class="hint">Keine Ersatzspieler.</p>'}
+      ${freeEdit&&ids.length?`<div class="freebar">${ui.freeSel?`<span><b>${esc(pname(ui.freeSel))}</b> ausgewählt</span><button class="btn ghost sm" data-act="freeBench">Auf die Bank</button>`:`<span class="hint">${starters.size?'Spieler ziehen zum Verschieben, antippen zum Auswählen.':'Tippe unten auf Spieler der Ersatzbank, um sie aufs Feld zu holen.'}</span>`}</div>`:''}
+      ${ids.length?`<h3>Ersatzbank · ${bench.length}</h3>${bench.length?`<div class="bench">${bench.map(p=>freeEdit?`<button data-act="freeAdd" data-id="${p.id}" aria-label="${esc(p.name)} aufs Feld">${nrBox(p)}${esc(p.name)} <b aria-hidden="true">+</b></button>`:`<span>${nrBox(p)}${esc(p.name)}</span>`).join('')}</div>`:'<p class="hint">Keine Ersatzspieler.</p>'}
         <h3>Kader · ${ids.length}</h3><p class="hint" style="color:var(--ink)">${esc(ids.map(pById).sort((a,b)=>a.name.localeCompare(b.name,'de')).map(p=>(p.nr?p.nr+' ':'')+p.name).join(' · '))}</p>`:''}
     </div>${editor}`;
 }
@@ -2155,6 +2181,30 @@ async function doShift(e,s,join){
 function dropSignups(eid,sid,pids){ if(AUTH.mode!=='live') return; pids.forEach(p=>FB.deleteDoc(D('signups',`${eid}_${sid}_${p}`)).catch(()=>{})); }
 const scrollToId=id=>setTimeout(()=>{const el=document.getElementById(id); if(el) window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-8,behavior:'smooth'});},40);
 
+/* Freie Aufstellung: Spieler auf dem Feld ziehen (Maus und Finger) */
+document.addEventListener('pointerdown',ev=>{
+  const d=ev.target.closest('#fPitch.freeedit .pos.drag'); if(!d||!can('events')) return;
+  const pitch=document.getElementById('fPitch'); ev.preventDefault();
+  const st={id:d.dataset.pid,x0:ev.clientX,y0:ev.clientY,moved:false,out:false};
+  try{d.setPointerCapture(ev.pointerId)}catch(e){}
+  d.classList.add('dragging');
+  const mv=e=>{
+    if(!st.moved&&Math.hypot(e.clientX-st.x0,e.clientY-st.y0)<6) return; st.moved=true;
+    const r=pitch.getBoundingClientRect();
+    st.x=Math.max(4,Math.min(96,(e.clientX-r.left)/r.width*100)); st.y=Math.max(4,Math.min(96,(e.clientY-r.top)/r.height*100));
+    d.style.left=st.x+'%'; d.style.top=st.y+'%';
+    st.out=e.clientX<r.left-12||e.clientX>r.right+12||e.clientY<r.top-12||e.clientY>r.bottom+12; d.classList.toggle('out',st.out);
+  };
+  const up=()=>{
+    d.removeEventListener('pointermove',mv); d.removeEventListener('pointerup',up); d.removeEventListener('pointercancel',up); d.classList.remove('dragging');
+    const e=S.events.find(x=>x.id===ui.lineup); if(!e||!e.squad) return; const sq=e.squad; sq.free=sq.free||{};
+    if(!st.moved){ ui.freeSel=ui.freeSel===st.id?null:st.id; render(); return; }
+    if(st.out){ delete sq.free[st.id]; ui.freeSel=null; commit(); toast(`${pname(st.id)} auf der Bank`); return; }
+    sq.free[st.id]={x:Math.round(st.x*10)/10,y:Math.round(st.y*10)/10}; ui.freeSel=null; commit();
+  };
+  d.addEventListener('pointermove',mv); d.addEventListener('pointerup',up); d.addEventListener('pointercancel',up);
+});
+
 /* ---------- Bedienung ---------- */
 const READER=new Set(['shiftsOpen','shiftJoin','shiftLeave','playersFold','evOpen','evBack','cmtSend','cmtDel','codeModal','demoPublicEnd','adminBtn','modalBg','modalClose','goto','person','back','pyPrev','pyNext','allDebtors','mode','view','onlyOpen','prev','next','copy','efilter','showPast','vote','pollNames','lineup','lineupBack','noDel','evView','statType','statAll','gateGo','reload','signOut','mStep','mResend','readMode']);
 document.addEventListener('submit',ev=>{if(ev.target.id==='mForm'){ev.preventDefault();submitModal();}});
@@ -2236,7 +2286,7 @@ document.addEventListener('click',async ev=>{
   case 'goto': goTab(v); break;
   case 'person': ui.person=id; ui.lineup=null; ui.py=NOW.getFullYear(); ui.confirmDel=null; render(); window.scrollTo(0,0); break;
   case 'back': ui.person=null; ui.confirmDel=null; render(); break;
-  case 'lineup': closeForm(); ui.lineup=v; ui.person=null; ui.confirmDel=null; render(); window.scrollTo(0,0); break;
+  case 'lineup': closeForm(); ui.freeSel=null; ui.lineup=v; ui.person=null; ui.confirmDel=null; render(); window.scrollTo(0,0); break;
   case 'lineupBack': closeForm(); ui.lineup=null; ui.tab='events'; ui.confirmDel=null; render(); break;
   case 'pyPrev': ui.py--; render(); break;
   case 'pyNext': ui.py++; render(); break;
@@ -2300,7 +2350,14 @@ document.addEventListener('click',async ev=>{
     const e=S.events.find(x=>x.id===ui.lineup); if(!e||!can('events')) return;
     const sq=e.squad||{ids:[],formation:'4-4-2',slots:{}};
     sq.ids=[...ui.sel]; Object.keys(sq.slots).forEach(k=>{if(!ui.sel.has(sq.slots[k])) delete sq.slots[k];});
+    if(sq.free) Object.keys(sq.free).forEach(id=>{if(!ui.sel.has(id)) delete sq.free[id];});
     e.squad=sq; closeForm(); commit(); toast(`Kader mit ${sq.ids.length} Spielern gespeichert`); break;}
+  case 'freeAdd': case 'freeBench': case 'freeClear': {
+    const e=S.events.find(x=>x.id===ui.lineup); if(!e||!e.squad||!can('events')) return; const sq=e.squad; sq.free=sq.free||{};
+    if(a==='freeAdd'){ sq.free[id]=freeSpot(sq); ui.freeSel=id; commit(); toast(`${pname(id)} steht auf dem Feld – jetzt an die richtige Stelle ziehen`); }
+    else if(a==='freeBench'){ if(ui.freeSel){ delete sq.free[ui.freeSel]; toast(`${pname(ui.freeSel)} auf der Bank`); ui.freeSel=null; commit(); } }
+    else { sq.free={}; ui.freeSel=null; commit(); toast('Alle auf der Bank'); }
+    break;}
   case 'vote': {const e=S.events.find(x=>x.id===v); if(e&&e.poll&&e.poll.open) doVote(e,+b.dataset.i); break;}
   case 'pollNames': ui.showNames=ui.showNames===v?null:v; render(); break;
   case 'closePoll': {const e=S.events.find(x=>x.id===v); if(e&&e.poll&&can('events')){e.poll.open=false; archivePoll(e); commit(); toast('Umfrage beendet und unter Optionen gespeichert');} break;}
@@ -2387,7 +2444,12 @@ document.addEventListener('change',ev=>{
   if(t.id==='eRepeat'){ui.ev.repeat=t.checked; render(); return;}
   if(t.id==='fDate'){ui.date=t.value; return;}
   if(t.id==='shSelf'&&can('events')){const e=S.events.find(x=>x.id===ui.evDetail); if(e){e.shifts=e.shifts||{self:true,list:[]}; e.shifts.self=t.checked; commit(); toast(t.checked?'Spieler können sich selbst eintragen':'Nur das Orga-Team teilt ein');} return;}
-  if(t.id==='lFormation'&&can('events')){const e=S.events.find(x=>x.id===ui.lineup); if(e){e.squad=e.squad||{ids:[],formation:'4-4-2',slots:{}}; e.squad.formation=t.value; const n=FORMS[t.value].length; Object.keys(e.squad.slots).forEach(k=>{if(+k>=n) delete e.squad.slots[k];}); commit();} return;}
+  if(t.id==='lFormation'&&can('events')){const e=S.events.find(x=>x.id===ui.lineup); if(e){e.squad=e.squad||{ids:[],formation:'4-4-2',slots:{}}; const sq=e.squad, prev=sq.formation; sq.formation=t.value; ui.freeSel=null;
+    if(t.value===FREE){ /* Start mit den Positionen des bisherigen Systems */
+      if(!sq.free||!Object.keys(sq.free).length){ sq.free={}; const P=FORMS[prev]||FORMS['4-4-2']; Object.entries(sq.slots||{}).forEach(([k,pid])=>{const c=P[+k]; if(c&&sq.ids.includes(pid)) sq.free[pid]={x:c[1],y:c[2]};}); }
+      toast('Freie Aufstellung: Spieler auf dem Feld ziehen');
+    }else{ const n=FORMS[t.value].length; Object.keys(sq.slots||{}).forEach(k=>{if(+k>=n) delete sq.slots[k];}); }
+    commit();} return;}
   if(t.dataset.slot!==undefined&&can('events')){const e=S.events.find(x=>x.id===ui.lineup); if(e&&e.squad){const sl=e.squad.slots; Object.keys(sl).forEach(k=>{if(sl[k]===t.value) delete sl[k];}); if(t.value) sl[t.dataset.slot]=t.value; else delete sl[t.dataset.slot]; commit();} return;}
   if(t.id==='importFile'&&isFull()){const f=t.files&&t.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{try{parseImport(r.result); ui.importText=r.result; ui.confirmDel='import'; render();}catch(e){toast('Die Datei ist keine gültige Sicherung');}}; r.readAsText(f); return;}
   if(!isFull()) return;
