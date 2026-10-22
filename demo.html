@@ -245,6 +245,23 @@ textarea{min-height:84px;resize:vertical}
 .ev .confirm,.ev .poll,.ev .sq{grid-column:1/-1}
 .sq{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px dashed var(--line);padding-top:8px;font-size:13px}
 .sq b{font-weight:700}
+.shifts{display:grid;gap:8px}
+.shift{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:grid;gap:6px;background:var(--surface);min-width:0}
+.shift.mine{border-color:var(--c2);box-shadow:inset 3px 0 0 var(--c2)}
+.shift .sh{display:flex;align-items:baseline;gap:8px;justify-content:space-between;min-width:0}
+.shift .sn{font-weight:700}
+.shift .stime{font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap}
+.shift .cap{flex:none;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;background:var(--chip)}
+.shift .cap.full{background:color-mix(in srgb,var(--ok) 18%,var(--surface));color:var(--ok)}
+.shift .cap.low{background:color-mix(in srgb,var(--due) 14%,var(--surface));color:var(--due)}
+.shift .who{display:flex;flex-wrap:wrap;gap:4px}
+.shift .who span{font-size:12.5px;background:var(--bg);border-radius:4px;padding:2px 7px}
+.shift .who span.me{background:var(--c2);color:var(--on-c2);font-weight:700}
+.shift .who span.free{color:var(--muted);background:none;border:1px dashed var(--line);padding:1px 6px}
+.shift .sact{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.shform{display:grid;gap:10px;border:1px dashed var(--line);border-radius:8px;padding:10px}
+.pick .pw{display:grid;min-width:0;line-height:1.2}
+.pick .tg{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .poll{border-top:1px dashed var(--line);padding-top:8px;display:grid;gap:8px}
 .pq{font-weight:700;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .vopts{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:6px}
@@ -357,6 +374,9 @@ table.grid{border-collapse:separate;border-spacing:0;font-size:13.5px;width:100%
 .st.wait{background:var(--warn-bg);color:var(--warn)}
 .st.off{background:var(--chip);color:var(--muted)}
 .code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--muted)}
+.foldhead{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;background:none;border:0;padding:0;text-align:left;color:var(--ink)}
+.foldhead .fold{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
+.foldhead .fold i{font-style:normal;font-size:10px}
 .adm{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;flex-wrap:wrap}
 .adm .lb{flex:1 1 160px;font-weight:600;min-width:0}
 .adm .lb small{display:block;font-weight:500;color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
@@ -604,6 +624,15 @@ function sample(){
   const codes={}; ids.forEach((id,i)=>{if(i%9!==4) codes[id]=newCode();});
   const birth={}; ids.forEach((id,i)=>{if(i%8!==6) birth[id]=`${1988+(i*7)%17}-${String(1+(i*5)%12).padStart(2,'0')}-${String(1+(i*11)%28).padStart(2,'0')}`;});
   const kohl={id:uid(),type:'event',date:addDays(9),time:'18:30',title:'Kohlfahrt',place:'Start am Vereinsheim',note:'Bus ist bestellt',comments:true,poll:{q:'Welches Essen nimmst du?',opts:['Grünkohl','Vegetarisch','Kein Essen'],votes:votes(6,30),open:true,comments:true}};
+  const turnier={id:uid(),type:'event',date:addDays(30),time:'09:00',title:'Hallenturnier (wir richten aus)',place:'Sporthalle am Schulzentrum',note:'Jeder hilft mindestens einmal mit',comments:true,
+    shifts:{self:true,list:[
+      {id:uid(),name:'Aufbau',from:'08:00',to:'09:00',need:6,ids:[ids[0],ids[5],ids[11],ids[17]],self:[ids[23]]},
+      {id:uid(),name:'Kasse',from:'09:00',to:'13:00',need:2,ids:[ids[2]],self:[ids[30]]},
+      {id:uid(),name:'Bierstand',from:'11:00',to:'14:00',need:3,ids:[ids[4],ids[9]],self:[ids[14]]},
+      {id:uid(),name:'Grill',from:'11:30',to:'15:00',need:2,ids:[ids[12],ids[20]],self:[]},
+      {id:uid(),name:'Kuchen',from:'13:00',to:'16:00',need:2,ids:[],self:[ids[27]]},
+      {id:uid(),name:'Bierstand',from:'14:00',to:'17:00',need:3,ids:[ids[8]],self:[]},
+      {id:uid(),name:'Abbau',from:'17:00',to:'18:30',need:6,ids:[ids[1],ids[6]],self:[ids[33],ids[36]]}]}};
   const seeblick={id:uid(),type:'game',date:addDays(3),time:'15:00',title:'SG Seeblick',home:false,place:'Waldstadion Seeblick',note:'Treffpunkt 13:45 am Vereinsheim, Fahrgemeinschaften',comments:true,poll:rsvp('game',nextVotes),squad:mkSquad(nextVotes)};
   g1.result='3:1'; g1.comments=true;
   g1.report={text:'Verdienter Heimsieg bei Nieselregen. Nach dem frühen Rückstand haben wir das Spiel über die Außen gedreht: Ausgleich per Kopfball nach Ecke, danach zwei Konter sauber zu Ende gespielt.\n\nNächste Woche bitte pünktlich zum Aufwärmen – 13:15 Uhr.',by:'Trainer',ts:Date.now()-8*864e5};
@@ -617,7 +646,7 @@ function sample(){
     {id:uid(),e:kohl.id,k:'event',a:'demo-full',an:'Kassenwart',t:'Busanteil bitte bis Ende des Monats überweisen.',ts:Date.now()-170e6}];
   const members=ids.filter((id,i)=>codes[id]&&i%4!==1).map((id,i)=>({p:id,code:codes[id],seen:Date.now()-(i%6)*86400000*(1+i%3)}));
   const out={
-    ...emptyState(), reports:{}, sample:true, sampleV:41,
+    ...emptyState(), reports:{}, sample:true, sampleV:42,
     players,
     days:[
       {date:prev2+'-12',att:pickN(8,26)},{date:prev2+'-26',att:pickN(9,29)},
@@ -639,6 +668,7 @@ function sample(){
       seeblick,
       {id:uid(),type:'training',date:addDays(nextThu),time:'19:00',title:'',place:'Sportplatz',note:'',poll:rsvp('training',votes(4,15))},
       kohl,
+      turnier,
       {id:uid(),type:'game',date:addDays(17),time:'14:00',title:'FC Westerau',home:true,place:'Heimplatz',note:''},
       {id:uid(),type:'event',date:addDays(54),time:'19:00',title:'Weihnachtsfeier',place:'Vereinsheim',note:''}
     ],
@@ -689,7 +719,7 @@ ui.ev=blankEv();
 
 /* ---------- Online (Firebase) ---------- */
 const FB={};
-const LIVE={parts:{},loaded:new Set(),votes:{},synced:{},unsubs:[],admins:[],invites:[],codes:{},members:[],backups:[],log:[],pending:false,
+const LIVE={parts:{},loaded:new Set(),votes:{},signups:{},synced:{},unsubs:[],admins:[],invites:[],codes:{},members:[],backups:[],log:[],pending:false,
   comments:[],balance:null,balances:{},balLoaded:false,pubJson:undefined,derivedDone:false,derivedTimer:null,rep:{},migrate:{}};
 const BASE_PARTS=['main','players','drinks','fees','misc','events','archive'];
 const partList=()=>AUTH.admin&&AUTH.admin.role!=='part'?[...BASE_PARTS,'private']:BASE_PARTS;
@@ -771,6 +801,7 @@ function subscribeAll(){
   const err=e=>{console.warn(e);};
   partList().forEach(k=>LIVE.unsubs.push(FB.onSnapshot(D('team',k),s=>{LIVE.parts[k]=s.exists()?s.data():null; LIVE.loaded.add(k); onLiveData();},e=>{if(!['drinks','fees','misc'].includes(k)) err(e); LIVE.parts[k]=null; LIVE.loaded.add(k); onLiveData();})));
   LIVE.unsubs.push(FB.onSnapshot(FB.collection(FB.db,'votes'),qs=>{const v={}; qs.forEach(d=>{const x=d.data(); (v[x.e]=v[x.e]||{})[x.p]=x.i;}); LIVE.votes=v; onLiveData();},err));
+  LIVE.unsubs.push(FB.onSnapshot(FB.collection(FB.db,'signups'),qs=>{const v={}; qs.forEach(d=>{const x=d.data(); const m=(v[x.e]=v[x.e]||{}); (m[x.s]=m[x.s]||[]).push(x.p);}); LIVE.signups=v; onLiveData();},err));
   LIVE.unsubs.push(FB.onSnapshot(FB.collection(FB.db,'comments'),qs=>{LIVE.comments=qs.docs.map(d=>{const x=d.data(); return {id:d.id,...x,ts:x.ts&&x.ts.toMillis?x.ts.toMillis():Date.now()};}); schedule();},err));
   if(AUTH.member&&!AUTH.admin) LIVE.unsubs.push(FB.onSnapshot(D('balances',AUTH.member.p),s=>{LIVE.balance=s.exists()?s.data():null; onLiveData();},()=>{}));
   subscribeReports(AUTH.admin?'all':['all','team'],()=>onLiveData());
@@ -807,7 +838,7 @@ function buildS(){
     players:(P.players&&P.players.list)||[],
     days:(P.drinks&&P.drinks.days)||[], paid:{drinks:(P.drinks&&P.drinks.paid)||{},team:(P.fees&&P.fees.paid)||{}},
     misc:(P.misc&&P.misc.items)||[],
-    events:Object.values((P.events&&P.events.map)||{}).map(e=>e.poll?{...e,poll:{...e.poll,votes:{...(LIVE.votes[e.id]||{})}}}:e),
+    events:Object.values((P.events&&P.events.map)||{}).map(e=>withSignups(e.poll?{...e,poll:{...e.poll,votes:{...(LIVE.votes[e.id]||{})}}}:e)),
     archive:((P.archive&&P.archive.list)||[]).map(a=>({...a,names:(a.names||[]).map(x=>Array.isArray(x)?x:(x&&x.l)||[])})),
     reports:liveReports()};
   /* Spieler ohne Einblick in alle Beträge: eigene Daten aus dem persönlichen Saldo */
@@ -822,6 +853,12 @@ function buildS(){
   lastSaved=JSON.stringify(S);
 }
 const clean=o=>JSON.parse(JSON.stringify(o));
+/* Selbst eingetragene Helfer liegen online in „signups“ (je Spieler ein Dokument), die Einteilung der Admins im Termin */
+function withSignups(e){
+  if(!e.shifts) return e;
+  const su=LIVE.signups[e.id]||{};
+  return {...e,shifts:{self:!!e.shifts.self,list:(e.shifts.list||[]).map(s=>({...s,ids:s.ids||[],self:[...(su[s.id]||[])]}))}};
+}
 function partsOf(s){
   return {
     main:clean({appName:s.appName,teamName:s.teamName,fee:s.fee,rate:s.rate,paypal:s.paypal,club:s.club,order:s.order,amountsPublic:!!s.amountsPublic,publicView:!!s.publicView}),
@@ -830,7 +867,7 @@ function partsOf(s){
     drinks:clean({days:s.days,paid:s.paid.drinks}),
     fees:clean({paid:s.paid.team}),
     misc:clean({items:s.misc}),
-    events:clean({statsPublic:!!s.statsPublic,map:Object.fromEntries(s.events.map(e=>{const c={...e}; if(c.poll) c.poll={q:c.poll.q,opts:c.poll.opts,open:!!c.poll.open}; return [e.id,c];}))}),
+    events:clean({statsPublic:!!s.statsPublic,map:Object.fromEntries(s.events.map(e=>{const c={...e}; if(c.poll) c.poll={q:c.poll.q,opts:c.poll.opts,open:!!c.poll.open}; if(c.shifts) c.shifts={self:!!c.shifts.self,list:(c.shifts.list||[]).map(({self,...r})=>r)}; return [e.id,c];}))}),
     archive:clean({list:s.archive.map(a=>({...a,names:(a.names||[]).map(l=>({l}))}))}) /* Firestore erlaubt keine verschachtelten Listen */
   };
 }
@@ -912,7 +949,7 @@ function restoreFrom(json,label){
   S=o; normalize();
   if(!S.club.crest) S.club.crest=keep.crest; if(!S.club.logo) S.club.logo=keep.logo;
   if(AUTH.mode==='demo') Object.assign(S,{demoCodes:keep.demoCodes,demoMembers:keep.demoMembers,demoLog:keep.demoLog,demoComments:keep.demoComments});
-  else S.events.forEach(e=>{if(e.poll) e.poll.votes=votes[e.id]||{};});
+  else S.events.forEach((e,i)=>{if(e.poll) e.poll.votes=votes[e.id]||{}; if(e.shifts) S.events[i]=withSignups(e);});
   S.sample=false; save(); closeForm(); render(); logAction(label+' durchgeführt');
 }
 
@@ -1092,11 +1129,26 @@ const nameBtn=p=>`<button class="nmb" data-act="person" data-id="${p.id}" title=
 
 /* ---------- Personenauswahl ---------- */
 function lastDay(){return S.days.filter(d=>d.date!==ui.editKey).sort((a,b)=>b.date.localeCompare(a.date))[0]}
-const pickBtn=p=>`<button class="pick" data-act="sel" data-id="${p.id}" data-n="${esc(p.name.toLowerCase())}" aria-pressed="${ui.sel.has(p.id)}"><span class="box">✓</span><span class="pn">${esc(p.name)}</span></button>`;
+/* Reihenfolge der Auswahl: beim Getränketag nach Häufigkeit (letzte 6 Monate), sonst alphabetisch */
+function pickOrder(){
+  const ps=sorted();
+  if(ui.tab!=='drinks'||ui.lineup) return ps;
+  const from=shiftDate(TODAY,-183), cnt={};
+  S.days.forEach(d=>{ if(d.date>=from&&d.date!==ui.editKey) d.att.forEach(id=>cnt[id]=(cnt[id]||0)+1); });
+  return ps.map((p,i)=>({p,i,c:cnt[p.id]||0})).sort((a,b)=>b.c-a.c||a.i-b.i).map(x=>x.p);
+}
+const pickBtn=(p,r,tg)=>`<button class="pick" data-act="sel" data-id="${p.id}" data-r="${r}" data-n="${esc(p.name.toLowerCase())}" aria-pressed="${ui.sel.has(p.id)}"><span class="box">✓</span>${tg?`<span class="pw"><span class="pn">${esc(p.name)}</span><span class="tg">${esc(tg)}</span></span>`:`<span class="pn">${esc(p.name)}</span>`}</button>`;
+/* Bei der Einteilung: zeigen, wo jemand bei diesem Termin schon eingeteilt ist */
+function pickTags(){
+  const t={}; if(!ui.shiftPick) return t;
+  const e=S.events.find(x=>x.id===ui.evDetail);
+  if(e) shiftsOf(e).forEach(s=>{if(s.id===ui.shiftPick) return; shiftWho(s).forEach(id=>{(t[id]=t[id]||[]).push(s.name+(s.from?' '+s.from:''));});});
+  return Object.fromEntries(Object.entries(t).map(([k,v])=>[k,v.join(', ')]));
+}
 function picker(){
   const ld=(ui.tab==='drinks'&&!ui.lineup)?lastDay():null;
-  const ps=sorted(), sel=ps.filter(p=>ui.sel.has(p.id)), rest=ps.filter(p=>!ui.sel.has(p.id));
-  const ev=ui.lineup?S.events.find(e=>e.id===ui.lineup&&e.poll):(ui.tab==='drinks'?S.events.find(e=>e.date===ui.date&&e.poll):null);
+  const ps=pickOrder(), rank=new Map(ps.map((p,i)=>[p.id,i])), sel=ps.filter(p=>ui.sel.has(p.id)), rest=ps.filter(p=>!ui.sel.has(p.id)), tags=pickTags();
+  const ev=ui.shiftPick?S.events.find(e=>e.id===ui.evDetail&&isRsvp(e)):ui.lineup?S.events.find(e=>e.id===ui.lineup&&e.poll):(ui.tab==='drinks'?S.events.find(e=>e.date===ui.date&&e.poll):null);
   return `<div class="pick-tools">
       <input type="search" id="pSearch" placeholder="Name suchen …" autocomplete="off" autocorrect="off" aria-label="Name suchen">
       <div class="row tight"><button class="chip" data-act="selall">Alle</button><button class="chip" data-act="selnone">Keine</button></div>
@@ -1104,20 +1156,22 @@ function picker(){
     ${ld||ev?`<div class="row tight">${ld?`<button class="chip" data-act="sellast" data-v="${ld.date}">Wie am ${fmtShort(ld.date)} (${ld.att.length})</button>`:''}
       ${ev?`<button class="chip" data-act="selpoll" data-v="${ev.id}">Zusagen aus Umfrage (${pollCounts(ev)[0]})</button>`:''}</div>`:''}
     <div class="pgh" id="pghSel" ${sel.length?'':'hidden'}>Ausgewählt (${sel.length})</div>
-    <div class="picklist" id="pickSel">${sel.map(pickBtn).join('')}</div>
+    <div class="picklist" id="pickSel">${sel.map(p=>pickBtn(p,rank.get(p.id),tags[p.id])).join('')}</div>
     <div class="pgh" id="pghRest" ${rest.length?'':'hidden'}>Nicht ausgewählt (${rest.length})</div>
-    <div class="picklist" id="pickRest">${rest.map(pickBtn).join('')}</div>
+    <div class="picklist" id="pickRest">${rest.map(p=>pickBtn(p,rank.get(p.id),tags[p.id])).join('')}</div>
     <p class="hint" id="noHit" hidden>Kein Name gefunden.</p>`;
 }
 function countText(){
   const n=ui.sel.size, all=S.players.length;
   if(ui.lineup) return `${n} von ${all} im Kader<small>Danach Positionen zuordnen</small>`;
+  if(ui.shiftPick){const e=S.events.find(x=>x.id===ui.evDetail), s=e&&shiftsOf(e).find(x=>x.id===ui.shiftPick), need=s?s.need:0;
+    return `${n} eingeteilt${need?` von ${need}`:''}<small>${need&&n<need?`noch ${need-n} frei`:need&&n>need?`${n-need} mehr als benötigt`:'Für diese Aufgabe'}</small>`;}
   const a=ui.tab==='drinks'?S.rate:(parseFloat(String(ui.draft.amount).replace(',','.'))||0);
   return `${n} von ${all} ausgewählt<small>${n} × ${eur(a)} = ${eur(n*a)}</small>`;
 }
 function syncPicker(){
   const s=document.getElementById('pickSel'), r=document.getElementById('pickRest'); if(!s) return;
-  [...document.querySelectorAll('.pick')].sort((a,b)=>a.dataset.n.localeCompare(b.dataset.n,'de')).forEach(b=>{
+  [...document.querySelectorAll('.pick')].sort((a,b)=>(+a.dataset.r)-(+b.dataset.r)).forEach(b=>{
     const on=ui.sel.has(b.dataset.id); b.setAttribute('aria-pressed',on); (on?s:r).appendChild(b);});
   const hs=document.getElementById('pghSel'), hr=document.getElementById('pghRest');
   hs.hidden=!s.children.length; hs.textContent=`Ausgewählt (${s.children.length})`;
@@ -1186,6 +1240,16 @@ function mineCard(yr){
     <div class="acts2">${url?`<a class="btn pp sm" href="${url}" target="_blank" rel="noopener">PayPal ${eur(open)}</a><button class="btn ghost sm" data-act="copy" data-v="${esc(txt)}">Verwendungszweck kopieren</button>`:''}
       <button class="btn ghost sm" data-act="person" data-id="${pid}">Details</button></div></div>`;
 }
+function myShifts(upcoming){
+  const pid=myPlayer(); if(!pid||isPublic()) return '';
+  const items=upcoming.flatMap(e=>shiftsOf(e).filter(s=>shiftWho(s).includes(pid)).sort(byFrom).map(s=>({e,s}))).slice(0,3);
+  const open=!items.length&&upcoming.find(e=>e.date<=shiftDate(TODAY,45)&&e.shifts&&e.shifts.self&&shiftsOf(e).some(s=>s.need>shiftWho(s).length));
+  if(open){const st=shiftStats(open); return `<button class="chip" data-act="shiftsOpen" data-v="${open.id}" style="justify-self:start">${esc(evTitle(open))}: noch ${st.need-st.got} Helfer gesucht ›</button>`;}
+  if(!items.length) return '';
+  return `<div class="hd">Deine Einteilung <span>antippen für Details</span></div><div class="minis" style="${secStyle('events')}">${items.map(({e,s})=>{const [,m,d]=e.date.split('-');
+    return `<button class="mini evt" data-act="shiftsOpen" data-v="${e.id}"><span class="md"><b>${+d}</b><i>${wd(e.date)} · ${MONTHS[+m-1].slice(0,3)}</i></span>
+      <span class="mt"><span class="ml">${esc(evTitle(e))}</span><span class="mv">${esc(s.name)}</span><span class="ms">${shiftTime(s)||'Uhrzeit folgt'}</span></span></button>`;}).join('')}</div>`;
+}
 function homeView(){
   const y=NOW.getFullYear(), yr=yearMonths(y), cm=[mk(y,NOW.getMonth())];
   const upcoming=S.events.filter(e=>e.date>=TODAY).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
@@ -1202,7 +1266,7 @@ function homeView(){
   const ld=S.days.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
   if(!seeAllAmounts()){
     return `${mineCard(yr)||'<div class="panel"><p class="hint">Die Beträge sind nur für den jeweiligen Spieler sichtbar. Öffne deinen persönlichen Link, um deinen Stand zu sehen.</p></div>'}
-      ${nextBlock(upcoming)}
+      ${nextBlock(upcoming)}${myShifts(upcoming)}
       <button class="chip" data-act="goto" data-v="roster" style="justify-self:start">Mannschaft ansehen ›</button>`;
   }
   if(!S.players.length&&isFull()) return `<div class="panel"><h2>Los geht's</h2><p class="hint">Trag unter Optionen die Spieler mit Spitznamen ein, wähle die Vereinsfarben und verschicke die Einladungen.</p><button class="btn" data-act="goto" data-v="settings" style="justify-self:start">Zu den Optionen</button></div>`;
@@ -1211,7 +1275,7 @@ function homeView(){
       <div><div class="lb">Gesamt offen · ${y} bis ${MONTHS[NOW.getMonth()]}</div><div class="big">${eur(gesamt)}</div></div>
       <div class="side"><div>${MONTHS[NOW.getMonth()]}: <b>${eur(gesamtMonat)}</b></div><div><b>${debt.length}</b> von ${S.players.length} offen</div></div>
     </div>
-    ${nextBlock(upcoming)}
+    ${nextBlock(upcoming)}${myShifts(upcoming)}
     <div class="hd">Noch offen <span>Name antippen für Details &amp; PayPal</span></div>
     ${debt.length?`<div class="plist">${shown.map(d=>`<button class="p" data-act="person" data-id="${d.p.id}">${nrBox(d.p)}
         <div class="n">${esc(d.p.name)}<div>${d.parts.map(x=>`<span class="dot" style="background:${secHex(x.k)}"></span>${SEC[x.k].short} ${eur(x.o)}`).join(' · ')}</div></div>
@@ -1433,6 +1497,66 @@ function squadLine(e){
   return `<div class="sq"><span>${n?`<b>Kader ${n}</b> · ${esc(sq.formation)} · ${set} von ${FORMS[sq.formation].length} besetzt`:'Noch kein Kader'}</span>
     <button class="btn sm" data-act="lineup" data-v="${e.id}">${n?'Kader & Aufstellung':'Kader anlegen'}</button></div>`;
 }
+/* ---------- Einteilung (Aufbau, Abbau, Bierstand …) ---------- */
+const SHIFT_PRESETS=['Aufbau','Abbau','Bierstand','Grill','Kasse','Kuchen','Küche','Fahrdienst','Aufräumen'];
+const shiftsOf=e=>(e&&e.shifts&&e.shifts.list)||[];
+const shiftWho=s=>[...new Set([...(s.ids||[]),...(s.self||[])])].filter(pById).sort((a,b)=>pname(a).localeCompare(pname(b),'de'));
+const shiftTime=s=>s.from?(s.to?`${s.from}–${s.to} Uhr`:`ab ${s.from} Uhr`):'';
+const byFrom=(a,b)=>(a.from||'99').localeCompare(b.from||'99')||a.name.localeCompare(b.name,'de');
+function shiftStats(e){let need=0,got=0; shiftsOf(e).forEach(s=>{const n=shiftWho(s).length; if(s.need>0){need+=s.need; got+=Math.min(n,s.need);}}); return {need,got,people:new Set(shiftsOf(e).flatMap(shiftWho)).size};}
+const shiftSum=e=>{const st=shiftStats(e); return st.need?`${st.got} von ${st.need} Plätzen besetzt`:`${st.people} eingeteilt`;};
+function shiftLine(e){
+  const list=shiftsOf(e);
+  if(!list.length&&!(can('events')&&e.type==='event')) return '';
+  const pid=myPlayer(), mine=pid?list.filter(s=>shiftWho(s).includes(pid)).sort(byFrom):[];
+  return `<div class="sq"><span>${list.length?`<b>Einteilung</b> · ${shiftSum(e)}${mine.length?` · <b>Du: ${esc(mine.map(s=>s.name).join(', '))}</b>`:''}`:'Noch keine Einteilung'}</span>
+    <button class="btn sm" data-act="shiftsOpen" data-v="${e.id}">${list.length?'Einteilung':'Einteilung anlegen'}</button></div>`;
+}
+function shiftForm(e){
+  const s=ui.shiftEdit==='new'?{name:'',from:'',to:'',need:2}:(shiftsOf(e).find(x=>x.id===ui.shiftEdit)||{});
+  return `<div class="shform"><h3>${ui.shiftEdit==='new'?'Neue Aufgabe':'Aufgabe bearbeiten'}</h3>
+    <label class="f">Aufgabe<input type="text" id="shName" value="${esc(s.name||'')}" placeholder="z. B. Bierstand" maxlength="40"></label>
+    <div class="row tight">${SHIFT_PRESETS.map(n=>`<button class="chip" data-act="shiftPreset" data-v="${n}">${n}</button>`).join('')}</div>
+    <div class="row" style="flex-wrap:nowrap">
+      <label class="f" style="flex:1;min-width:0">Von<input type="time" id="shFrom" value="${esc(s.from||'')}"></label>
+      <label class="f" style="flex:1;min-width:0">Bis<input type="time" id="shTo" value="${esc(s.to||'')}"></label>
+      <label class="f" style="flex:.8;min-width:0">Personen<input type="number" id="shNeed" min="0" max="40" inputmode="numeric" value="${s.need||''}"></label></div>
+    <p class="hint">Personen leer lassen = ohne feste Anzahl.</p>
+    <div class="row"><button class="btn" data-act="shiftSave">Speichern</button><button class="btn ghost" data-act="shiftCancel">Abbrechen</button></div></div>`;
+}
+function shiftsPanel(e){
+  const list=shiftsOf(e).slice().sort(byFrom), adm=can('events'), pid=myPlayer(), self=!!(e.shifts&&e.shifts.self), past=e.date<TODAY;
+  if(!list.length&&!(adm&&(e.type==='event'||ui.shiftEdit))) return '';
+  if(adm&&ui.form&&ui.shiftPick){const s=list.find(x=>x.id===ui.shiftPick);
+    if(s) return `<div class="panel form" id="pnl-shifts" style="${secStyle('events')}"><h2>${esc(s.name)} · Personen zuteilen</h2>
+      <p class="hint">${[shiftTime(s),s.need?`${s.need} Personen benötigt`:'ohne feste Anzahl'].filter(Boolean).join(' · ')}. Unter dem Namen steht, wo jemand bei diesem Termin schon eingeteilt ist.</p>${picker()}${saveBar('shiftPickSave')}</div>`;}
+  const tpl=adm&&!list.length&&!ui.shiftEdit?S.events.filter(x=>x.id!==e.id&&shiftsOf(x).length).sort((a,b)=>b.date.localeCompare(a.date))[0]:null;
+  const mine=pid?list.filter(s=>shiftWho(s).includes(pid)):[];
+  const rows=list.map(s=>{
+    const key='shift:'+e.id+'|'+s.id;
+    if(ui.confirmDel===key) return confirmBox(key,esc(s.name)+(s.from?' · '+shiftTime(s):''),'Aufgabe löschen?');
+    const who=shiftWho(s), n=who.length, full=s.need>0&&n>=s.need, inIt=!!pid&&who.includes(pid), selfIn=inIt&&(s.self||[]).includes(pid)&&!(s.ids||[]).includes(pid);
+    const cap=s.need?`<span class="cap ${full?'full':'low'}">${n} / ${s.need}</span>`:`<span class="cap">${n}</span>`;
+    const free=s.need>n?Array.from({length:Math.min(s.need-n,8)},()=>'<span class="free">frei</span>').join(''):'';
+    let act='';
+    if(adm) act=`<button class="btn ghost sm" data-act="shiftPick" data-v="${s.id}">Zuteilen</button><button class="edit" data-act="shiftEdit" data-v="${s.id}">Bearbeiten</button><button class="x" data-act="askDel" data-v="${key}" aria-label="Aufgabe löschen">×</button>`;
+    else if(self&&!past){ if(selfIn) act=`<button class="btn ghost sm" data-act="shiftLeave" data-v="${s.id}">Austragen</button>`;
+      else if(inIt) act='<span class="hint">Vom Orga-Team eingeteilt</span>';
+      else if(!full) act=`<button class="btn sm" data-act="shiftJoin" data-v="${s.id}">Eintragen</button>`; }
+    return `<div class="shift ${inIt?'mine':''}"><div class="sh"><span style="min-width:0"><span class="sn">${esc(s.name)}</span> <span class="stime">${shiftTime(s)}</span></span>${cap}</div>
+      <div class="who">${who.map(id=>`<span class="${id===pid?'me':''}">${esc(pname(id))}</span>`).join('')}${free}${!n&&!s.need?'<span class="free">noch niemand</span>':''}</div>
+      ${act?`<div class="sact">${act}</div>`:''}</div>`;}).join('');
+  return `<div class="panel" id="pnl-shifts" style="${secStyle('events')}">
+    <div class="row spread"><h2>Einteilung${list.length?` · ${shiftSum(e)}`:''}</h2>${adm&&!ui.shiftEdit?'<button class="btn sm" data-act="shiftEdit" data-v="new">+ Aufgabe</button>':''}</div>
+    ${mine.length&&!adm?`<p style="margin:0"><b>Du bist dabei:</b> ${esc(mine.map(s=>s.name+(s.from?' ('+shiftTime(s)+')':'')).join(', '))}</p>`:''}
+    ${adm?`<label class="check"><input type="checkbox" id="shSelf" ${self?'checked':''}> Spieler dürfen sich selbst in freie Plätze eintragen</label>`
+      :list.length?`<p class="hint">${past?'Der Termin ist vorbei.':self?'Tippe bei einer Aufgabe mit freien Plätzen auf „Eintragen“.':'Die Einteilung macht das Orga-Team.'}</p>`:''}
+    ${adm&&ui.shiftEdit?shiftForm(e):''}
+    ${tpl?`<button class="chip" data-act="shiftTpl" data-v="${tpl.id}" style="justify-self:start">Aufgaben von „${esc(evTitle(tpl))}“ übernehmen</button>`:''}
+    ${!list.length&&!ui.shiftEdit?'<p class="hint">Lege Aufgaben wie Aufbau, Bierstand oder Abbau an – mit Uhrzeit und wie viele Leute gebraucht werden.</p>':''}
+    ${list.length?`<div class="shifts">${rows}</div>`:''}
+  </div>`;
+}
 function evCard(e,cls,isNext){
   const key='event:'+e.id, adm=can('events');
   const [,m,d]=e.date.split('-');
@@ -1450,7 +1574,7 @@ function evCard(e,cls,isNext){
       <div class="s">${[e.time?e.time+' Uhr':'',esc(e.place)].filter(Boolean).join(' · ')}</div>
       ${e.note?`<div class="s">${esc(e.note)}</div>`:''}
       <div class="tags">${isNext?'<span class="badge nx">Nächster</span>':''}<span class="badge ${e.type==='training'?'tr':''}">${typeBadge}</span></div></div>
-    ${acts}${ui.confirmDel===key?confirmBox(key,'',e.poll&&Object.keys(e.poll.votes||{}).length?'Termin löschen? Die Umfrage wird vorher gespeichert.':'Termin löschen?'):''}${squadLine(e)}${pollBox(e,false)}
+    ${acts}${ui.confirmDel===key?confirmBox(key,'',e.poll&&Object.keys(e.poll.votes||{}).length?'Termin löschen? Die Umfrage wird vorher gespeichert.':'Termin löschen?'):''}${squadLine(e)}${shiftLine(e)}${pollBox(e,false)}
     <div class="evfoot"><button class="btn ghost sm" data-act="evOpen" data-v="${e.id}">${foot?foot+' · ':''}Details ›</button></div></div>`;
 }
 const VIS={team:'Nur Mannschaft',all:'Alle (auch öffentlich)',admin:'Nur Admins'};
@@ -1479,10 +1603,11 @@ function evDetailView(){
       <button class="back" data-act="evBack">‹ Termine</button>
       <div class="row" style="flex-wrap:nowrap;align-items:center;gap:12px"><div class="cal" style="width:56px;flex:none"><span>${wd(e.date)}</span><b>${+d}</b><span>${MONTHS[+m-1].slice(0,3)}</span></div>
         <div style="min-width:0"><h2>${esc(evTitle(e))}</h2><div class="hint">${[e.time?e.time+' Uhr':'',esc(e.place)].filter(Boolean).join(' · ')}</div></div></div>
-      <div class="row tight"><span class="badge ${e.type==='training'?'tr':''}">${typeBadge}</span>${adm?`<button class="edit" data-act="editEvent" data-v="${e.id}">Termin bearbeiten</button>`:''}</div>
+      <div class="row tight"><span class="badge ${e.type==='training'?'tr':''}">${typeBadge}</span>${adm?`<button class="edit" data-act="editEvent" data-v="${e.id}">Termin bearbeiten</button>`:''}${adm&&e.type!=='event'&&!shiftsOf(e).length&&!ui.shiftEdit?`<button class="edit" data-act="shiftEdit" data-v="new">+ Einteilung</button>`:''}</div>
       ${e.note?`<p style="margin:0">${esc(e.note)}</p>`:''}
       ${squadLine(e)}
     </div>
+    ${shiftsPanel(e)}
     ${reportPanel}
     ${e.poll?`<div class="panel">${pollBox(e,true)}</div>`:''}
     ${e.comments?`<div class="panel">${commentsBlock(e,'event')}</div>`:(adm?'<p class="hint">Kommentare sind für diesen Termin ausgeschaltet (Termin bearbeiten → „Kommentare erlauben“).</p>':'')}`;
@@ -1556,7 +1681,7 @@ function statsView(){
   </div>`;
 }
 function eventsView(){
-  if(ui.form&&can('events')) return eventForm();
+  if(ui.form&&can('events')&&!ui.shiftPick) return eventForm();
   if(ui.evDetail&&!isPublic()) return evDetailView();
   if(ui.evView==='stats'&&canSeeStats()&&!isPublic()) return evTabs()+statsView();
   const f=ui.efilter;
@@ -1672,10 +1797,12 @@ function adminsPanel(){
 function playersPanel(){
   const ps=sorted(), st=ps.map(p=>playerStatus(p.id));
   const nOk=st.filter(s=>s.cls==='ok').length, nWait=st.filter(s=>s.cls==='wait').length, nOff=st.filter(s=>s.cls==='off').length;
-  return `<div class="panel" id="pnl-players" style="${secStyle('team')}"><h2>Spieler &amp; Zugänge · ${S.players.length}</h2>
-    <p class="hint">Spitznamen oder Kürzel empfohlen. Das Geburtsdatum sehen nur Admins mit allen Rechten, alle anderen sehen nur das Alter. Jeder Spieler bekommt einen persönlichen Code.</p>
-    <div class="row tight"><span class="st ok">${nOk} aktiv</span><span class="st wait">${nWait} eingeladen</span><span class="st off">${nOff} ohne Zugang</span>
-      ${nOff?'<button class="btn ghost sm" data-act="codesAll">Codes für alle ohne Zugang erzeugen</button>':''}</div>
+  const open=ui.playersOpen;
+  return `<div class="panel" id="pnl-players" style="${secStyle('team')}">
+    <button class="foldhead" data-act="playersFold" aria-expanded="${open}"><h2>Spieler &amp; Zugänge · ${S.players.length}</h2><span class="fold">${open?'Einklappen':'Aufklappen'}<i aria-hidden="true">${open?'▲':'▼'}</i></span></button>
+    <div class="row tight"><span class="st ok">${nOk} aktiv</span><span class="st wait">${nWait} eingeladen</span><span class="st off">${nOff} ohne Zugang</span></div>
+    ${open?`<p class="hint">Spitznamen oder Kürzel empfohlen. Das Geburtsdatum sehen nur Admins mit allen Rechten, alle anderen sehen nur das Alter. Jeder Spieler bekommt einen persönlichen Code.</p>
+    ${nOff?'<button class="btn ghost sm" data-act="codesAll" style="justify-self:start">Codes für alle ohne Zugang erzeugen</button>':''}
     <div class="prows">${ps.map((p,i)=>{
       if(ui.confirmDel==='player:'+p.id) return confirmBox('player:'+p.id,esc(p.name),'Spieler entfernen? Sein Zugang wird gesperrt.','Entfernen');
       if(ui.confirmDel==='block:'+p.id) return confirmBox('block:'+p.id,esc(p.name),'Zugang sperren? Alle Geräte verlieren den Zugriff.','Sperren');
@@ -1686,7 +1813,7 @@ function playersPanel(){
           ${s.code?`<button class="btn sm" data-act="invite" data-id="${p.id}">Einladen</button><button class="btn ghost sm" data-act="qr" data-id="${p.id}">QR</button><button class="btn ghost sm" data-act="newCode" data-id="${p.id}">Neuer Code</button><button class="btn ghost sm" data-act="askDel" data-v="block:${p.id}">Sperren</button>`
             :`<button class="btn sm" data-act="newCode" data-id="${p.id}">Code erzeugen</button>`}</div></div>`;}).join('')}</div>
     <label class="f">Spieler hinzufügen (ein Spitzname pro Zeile)<textarea id="newPlayers" placeholder="Jonny&#10;Malle&#10;J.O."></textarea></label>
-    <div class="row"><button class="btn" data-act="addPlayers">Hinzufügen &amp; Codes erzeugen</button></div>
+    <div class="row"><button class="btn" data-act="addPlayers">Hinzufügen &amp; Codes erzeugen</button></div>`:''}
   </div>`;
 }
 function backupPanel(){
@@ -1943,9 +2070,9 @@ function render(){
   renderChrome();
 }
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2600);}
-function closeForm(){ui.form=false;ui.editKey=null;ui.sel.clear();ui.draft={title:'',amount:''};ui.ev=blankEv();}
+function closeForm(){ui.form=false;ui.shiftPick=null;ui.shiftEdit=null;ui.editKey=null;ui.sel.clear();ui.draft={title:'',amount:''};ui.ev=blankEv();}
 function toTop(){try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){window.scrollTo(0,0)}}
-function goTab(t){ui.tab=t;ui.person=null;ui.lineup=null;ui.evDetail=null;ui.reportEdit=false;closeForm();ui.confirmDel=null;render();window.scrollTo(0,0);}
+function goTab(t){if(t==='settings') ui.playersOpen=false; ui.tab=t;ui.person=null;ui.lineup=null;ui.evDetail=null;ui.reportEdit=false;closeForm();ui.confirmDel=null;render();window.scrollTo(0,0);}
 function enterCode(raw){
   const c=normCode(raw); if(c.length<8){toast('Bitte den vollständigen Code eingeben');return;}
   ls.set('mk-code',c); AUTH.ready=false; render();
@@ -2010,8 +2137,25 @@ async function doVote(e,i){
   }else save();
 }
 
+async function doShift(e,s,join){
+  const p=myPlayer();
+  if(!p){ toast(AUTH.mode==='live'?'Zum Eintragen deinen persönlichen Spieler-Link öffnen':'Bitte oben zuerst deinen Namen wählen'); return; }
+  if(!(e.shifts&&e.shifts.self)||e.date<TODAY) return;
+  s.self=s.self||[];
+  if(join){ if(shiftWho(s).includes(p)) return; if(s.need>0&&shiftWho(s).length>=s.need){toast('Diese Aufgabe ist schon voll'); return;} s.self.push(p); }
+  else { if(!s.self.includes(p)) return; s.self=s.self.filter(x=>x!==p); }
+  render(); toast(join?`Eingetragen: ${s.name}${s.from?' ab '+s.from+' Uhr':''}`:`Ausgetragen: ${s.name}`);
+  if(AUTH.mode==='live'){
+    try{ const ref=D('signups',`${e.id}_${s.id}_${p}`); if(join) await FB.setDoc(ref,{e:e.id,s:s.id,p}); else await FB.deleteDoc(ref); }
+    catch(err){ console.warn(err); toast('Konnte nicht gespeichert werden'); buildS(); render(); }
+  }else save();
+}
+/* Selbsteintragungen entfernen, wenn ein Admin jemanden austrägt oder eine Aufgabe löscht */
+function dropSignups(eid,sid,pids){ if(AUTH.mode!=='live') return; pids.forEach(p=>FB.deleteDoc(D('signups',`${eid}_${sid}_${p}`)).catch(()=>{})); }
+const scrollToId=id=>setTimeout(()=>{const el=document.getElementById(id); if(el) window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-8,behavior:'smooth'});},40);
+
 /* ---------- Bedienung ---------- */
-const READER=new Set(['evOpen','evBack','cmtSend','cmtDel','codeModal','demoPublicEnd','adminBtn','modalBg','modalClose','goto','person','back','pyPrev','pyNext','allDebtors','mode','view','onlyOpen','prev','next','copy','efilter','showPast','vote','pollNames','lineup','lineupBack','noDel','evView','statType','statAll','gateGo','reload','signOut','mStep','mResend','readMode']);
+const READER=new Set(['shiftsOpen','shiftJoin','shiftLeave','playersFold','evOpen','evBack','cmtSend','cmtDel','codeModal','demoPublicEnd','adminBtn','modalBg','modalClose','goto','person','back','pyPrev','pyNext','allDebtors','mode','view','onlyOpen','prev','next','copy','efilter','showPast','vote','pollNames','lineup','lineupBack','noDel','evView','statType','statAll','gateGo','reload','signOut','mStep','mResend','readMode']);
 document.addEventListener('submit',ev=>{if(ev.target.id==='mForm'){ev.preventDefault();submitModal();}});
 document.addEventListener('click',async ev=>{
   const tab=ev.target.closest('[data-tab]'); if(tab){goTab(tab.dataset.tab);return;}
@@ -2027,6 +2171,31 @@ document.addEventListener('click',async ev=>{
     else { const u=FB.auth&&FB.auth.currentUser; ui.modal={kind:'login',step:'login'};
       if(u&&!u.isAnonymous){ ui.modal.busy=true; renderModal(); afterClaim(await claimAdmin().catch(()=>'login')); } else renderModal(); }
     break;
+  case 'playersFold': ui.playersOpen=!ui.playersOpen; render(); break;
+  case 'shiftsOpen': ui.evDetail=v; ui.lineup=null; ui.person=null; ui.tab='events'; ui.reportEdit=false; closeForm(); render(); window.scrollTo(0,0); scrollToId('pnl-shifts'); break;
+  case 'shiftJoin': case 'shiftLeave': {const e=S.events.find(x=>x.id===ui.evDetail), s=e&&shiftsOf(e).find(x=>x.id===v); if(s) doShift(e,s,a==='shiftJoin'); break;}
+  case 'shiftEdit': closeForm(); ui.shiftEdit=v; render(); scrollToId('pnl-shifts'); setTimeout(()=>{const i=document.getElementById('shName'); if(i&&v==='new') i.focus();},60); break;
+  case 'shiftCancel': ui.shiftEdit=null; render(); break;
+  case 'shiftPreset': {const i=document.getElementById('shName'); if(i){i.value=v; i.focus();} break;}
+  case 'shiftSave': {
+    const e=S.events.find(x=>x.id===ui.evDetail); if(!e||!can('events')) return;
+    const name=document.getElementById('shName').value.trim().slice(0,40); if(!name){toast('Bitte eine Aufgabe eingeben'); return;}
+    const from=document.getElementById('shFrom').value, to=document.getElementById('shTo').value, need=Math.max(0,Math.min(40,parseInt(document.getElementById('shNeed').value,10)||0));
+    e.shifts=e.shifts||{self:true,list:[]};
+    if(ui.shiftEdit==='new') e.shifts.list.push({id:uid(),name,from,to,need,ids:[],self:[]});
+    else {const s=e.shifts.list.find(x=>x.id===ui.shiftEdit); if(s) Object.assign(s,{name,from,to,need});}
+    ui.shiftEdit=null; commit(); toast(`Aufgabe „${name}“ gespeichert`); break;}
+  case 'shiftPick': {const e=S.events.find(x=>x.id===ui.evDetail), s=e&&shiftsOf(e).find(x=>x.id===v); if(!s||!can('events')) return;
+    closeForm(); ui.form=true; ui.shiftPick=v; ui.sel=new Set(shiftWho(s)); render(); scrollToId('pnl-shifts'); break;}
+  case 'shiftPickSave': {
+    const e=S.events.find(x=>x.id===ui.evDetail), s=e&&shiftsOf(e).find(x=>x.id===ui.shiftPick); if(!s||!can('events')) return;
+    const own=s.self||[], gone=own.filter(id=>!ui.sel.has(id));
+    s.self=own.filter(id=>ui.sel.has(id)); s.ids=[...ui.sel].filter(id=>!s.self.includes(id));
+    dropSignups(e.id,s.id,gone); const n=ui.sel.size; closeForm(); commit(); scrollToId('pnl-shifts'); toast(`${s.name}: ${n} eingeteilt`); break;}
+  case 'shiftTpl': {
+    const e=S.events.find(x=>x.id===ui.evDetail), t=S.events.find(x=>x.id===v); if(!e||!t||!can('events')) return;
+    e.shifts={self:!!(t.shifts&&t.shifts.self),list:shiftsOf(t).map(s=>({id:uid(),name:s.name,from:s.from||'',to:s.to||'',need:s.need||0,ids:[],self:[]}))};
+    commit(); toast(`${e.shifts.list.length} Aufgaben übernommen – jetzt zuteilen`); break;}
   case 'readMode': ui.adminView=false; closeForm(); render(); toast('Lesemodus'); break;
   case 'evOpen': ui.evDetail=v; ui.lineup=null; ui.tab='events'; ui.reportEdit=false; closeForm(); render(); window.scrollTo(0,0); break;
   case 'evBack': ui.evDetail=null; ui.reportEdit=false; render(); break;
@@ -2140,7 +2309,7 @@ document.addEventListener('click',async ev=>{
   case 'noDel': ui.confirmDel=null; render(); break;
   case 'doDel': {
     const i=v.indexOf(':'), t=v.slice(0,i), k=v.slice(i+1);
-    const need={day:'drinks',misc:'misc',event:'events',squad:'events'}[t];
+    const need={day:'drinks',misc:'misc',event:'events',squad:'events',shift:'events'}[t];
     if(need?!can(need):!isFull()) return;
     ui.confirmDel=null;
     if(t==='admin'){ try{await FB.deleteDoc(D('admins',k)); logAction('Admin entfernt'); toast('Admin entfernt');}catch(e){toast('Keine Berechtigung');} render(); return; }
@@ -2150,6 +2319,7 @@ document.addEventListener('click',async ev=>{
     if(t==='misc') S.misc=S.misc.filter(x=>x.id!==k);
     if(t==='event'){const e=S.events.find(x=>x.id===k); if(e&&e.poll&&Object.keys(e.poll.votes||{}).length&&e.poll.open) archivePoll(e); S.events=S.events.filter(x=>x.id!==k);}
     if(t==='squad'){const e=S.events.find(x=>x.id===k); if(e) delete e.squad;}
+    if(t==='shift'){const [eid,sid]=k.split('|'), e=S.events.find(x=>x.id===eid); if(e&&e.shifts){const s=e.shifts.list.find(x=>x.id===sid); if(s) dropSignups(eid,sid,s.self||[]); e.shifts.list=e.shifts.list.filter(x=>x.id!==sid); if(!e.shifts.list.length) delete e.shifts;}}
     if(t==='player'){ if(codeOf(k)) await setCode(k,'').catch(()=>{}); S.players=S.players.filter(p=>p.id!==k); if(S.birth) delete S.birth[k]; }
     if(t==='arch') S.archive=S.archive.filter(x=>x.id!==k);
     if(ui.editKey===k) closeForm();
@@ -2215,6 +2385,7 @@ document.addEventListener('change',ev=>{
   if(t.id==='ePollCmt'){ui.ev.pcomments=t.checked; return;}
   if(t.id==='eRepeat'){ui.ev.repeat=t.checked; render(); return;}
   if(t.id==='fDate'){ui.date=t.value; return;}
+  if(t.id==='shSelf'&&can('events')){const e=S.events.find(x=>x.id===ui.evDetail); if(e){e.shifts=e.shifts||{self:true,list:[]}; e.shifts.self=t.checked; commit(); toast(t.checked?'Spieler können sich selbst eintragen':'Nur das Orga-Team teilt ein');} return;}
   if(t.id==='lFormation'&&can('events')){const e=S.events.find(x=>x.id===ui.lineup); if(e){e.squad=e.squad||{ids:[],formation:'4-4-2',slots:{}}; e.squad.formation=t.value; const n=FORMS[t.value].length; Object.keys(e.squad.slots).forEach(k=>{if(+k>=n) delete e.squad.slots[k];}); commit();} return;}
   if(t.dataset.slot!==undefined&&can('events')){const e=S.events.find(x=>x.id===ui.lineup); if(e&&e.squad){const sl=e.squad.slots; Object.keys(sl).forEach(k=>{if(sl[k]===t.value) delete sl[k];}); if(t.value) sl[t.dataset.slot]=t.value; else delete sl[t.dataset.slot]; commit();} return;}
   if(t.id==='importFile'&&isFull()){const f=t.files&&t.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{try{parseImport(r.result); ui.importText=r.result; ui.confirmDel='import'; render();}catch(e){toast('Die Datei ist keine gültige Sicherung');}}; r.readAsText(f); return;}
@@ -2253,12 +2424,13 @@ if(!LIVE_MODE) window.addEventListener('message',ev=>{
   switch(d.view){
     case 'events': ui.tab='events'; break;
     case 'roster': ui.tab='roster'; break;
-    case 'settings': ui.tab='settings'; break;
+    case 'settings': ui.tab='settings'; ui.playersOpen=d.scroll==='#pnl-players'; break;
     case 'drinks-form': {ui.tab='drinks'; ui.form=true; ui.date=TODAY; const ld=lastDay(); if(ld) ui.sel=new Set(ld.att.filter(pById)); break;}
     case 'drinks-table': ui.tab='drinks'; ui.view='table'; break;
     case 'stats': ui.tab='events'; ui.evView='stats'; ui.statType=d.stat||'training'; break;
     case 'report': ui.tab='events'; ui.evDetail=reported?reported.id:null; break;
     case 'lineup': ui.tab='events'; ui.lineup=nextGame?nextGame.id:null; break;
+    case 'shifts': {ui.tab='events'; const ev=S.events.filter(e=>e.date>=TODAY&&shiftsOf(e).length).sort((a,b)=>a.date.localeCompare(b.date))[0]; ui.evDetail=ev?ev.id:null; break;}
     case 'person': ui.person=ui.voter||debtor(); break;
     default: ui.tab='home';
   }
@@ -2272,7 +2444,7 @@ if(LIVE_MODE){
   initFirebase().catch(e=>{console.error(e); AUTH.ready=true; AUTH.gate='error'; AUTH.error='Die App konnte nicht geladen werden. Bitte Internetverbindung prüfen.'; render();});
 }else{
   try{S=JSON.parse(ls.get(KEY))}catch(e){}
-  if(!S||!S.players||(S.sample&&S.sampleV!==41)) S=sample();
+  if(!S||!S.players||(S.sample&&S.sampleV!==42)) S=sample();
   normalize(); lastSaved=JSON.stringify(S); render();
 }
 </script>
