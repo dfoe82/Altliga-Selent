@@ -589,7 +589,7 @@ function readImg(file,cb){
 
 /* ---------- Grunddaten ---------- */
 function emptyState(){
-  return {sample:false,appName:'Mannschaftskasse',teamName:'Unsere Mannschaft',fee:10,rate:3,paypal:'',statsPublic:false,amountsPublic:false,publicView:false,birth:{},reports:{},
+  return {sample:false,appName:'Mannschaftskasse',teamName:'Unsere Mannschaft',showSeason:false,fee:10,rate:3,paypal:'',statsPublic:false,amountsPublic:false,publicView:false,birth:{},reports:{},
     club:{c:[...PRESETS[0].c],use3:true,use4:true,crest:'',logo:''},order:['drinks','team','misc'],
     players:[],days:[],misc:[],paid:{team:{},drinks:{}},events:[],archive:[]};
 }
@@ -646,7 +646,7 @@ function sample(){
     {id:uid(),e:kohl.id,k:'event',a:'demo-full',an:'Kassenwart',t:'Busanteil bitte bis Ende des Monats überweisen.',ts:Date.now()-170e6}];
   const members=ids.filter((id,i)=>codes[id]&&i%4!==1).map((id,i)=>({p:id,code:codes[id],seen:Date.now()-(i%6)*86400000*(1+i%3)}));
   const out={
-    ...emptyState(), reports:{}, sample:true, sampleV:42,
+    ...emptyState(), reports:{}, sample:true, sampleV:43,
     players,
     days:[
       {date:prev2+'-12',att:pickN(8,26)},{date:prev2+'-26',att:pickN(9,29)},
@@ -758,7 +758,7 @@ function subscribeReports(kinds,after){
 const liveReports=()=>Object.assign({},...Object.values(LIVE.rep));
 function buildPublicS(){
   const P=LIVE.parts.public||{}, d=emptyState();
-  S={...d,appName:P.appName||d.appName,teamName:P.teamName||d.teamName,club:{...d.club,...(P.club||{})},
+  S={...d,appName:P.appName||d.appName,showSeason:!!P.showSeason,teamName:P.teamName||d.teamName,club:{...d.club,...(P.club||{})},
     events:(P.events||[]).map(e=>e.poll?{...e,poll:{...e.poll,votes:{...(LIVE.votes[e.id]||{})}}}:e),reports:liveReports()};
   normalize();
 }
@@ -832,7 +832,7 @@ function maybeSyncDerived(){
 }
 function buildS(){
   const P=LIVE.parts, d=emptyState(), m=P.main||{};
-  S={...d,appName:m.appName||d.appName,teamName:m.teamName??d.teamName,fee:m.fee??d.fee,rate:m.rate??d.rate,paypal:m.paypal??'',club:{...d.club,...(m.club||{})},order:m.order||d.order,
+  S={...d,appName:m.appName||d.appName,showSeason:!!m.showSeason,teamName:m.teamName??d.teamName,fee:m.fee??d.fee,rate:m.rate??d.rate,paypal:m.paypal??'',club:{...d.club,...(m.club||{})},order:m.order||d.order,
     amountsPublic:!!m.amountsPublic,publicView:!!m.publicView,birth:(P.private&&P.private.birth)||{},
     statsPublic:!!(P.events&&P.events.statsPublic),
     players:(P.players&&P.players.list)||[],
@@ -861,7 +861,7 @@ function withSignups(e){
 }
 function partsOf(s){
   return {
-    main:clean({appName:s.appName,teamName:s.teamName,fee:s.fee,rate:s.rate,paypal:s.paypal,club:s.club,order:s.order,amountsPublic:!!s.amountsPublic,publicView:!!s.publicView}),
+    main:clean({appName:s.appName,showSeason:!!s.showSeason,teamName:s.teamName,fee:s.fee,rate:s.rate,paypal:s.paypal,club:s.club,order:s.order,amountsPublic:!!s.amountsPublic,publicView:!!s.publicView}),
     private:clean({birth:s.birth||{}}),
     players:clean({list:s.players}),
     drinks:clean({days:s.days,paid:s.paid.drinks}),
@@ -873,7 +873,7 @@ function partsOf(s){
 }
 /* Öffentliche Termine: nur Datum, Art, Titel, Uhrzeit, Ort; Umfragestand nur bei Spiel und Training */
 function publicOf(s){
-  return clean({on:!!s.publicView,appName:s.appName,teamName:s.teamName,club:{c:s.club.c,use3:s.club.use3,use4:s.club.use4,crest:s.club.crest||'',logo:s.club.logo||''},
+  return clean({on:!!s.publicView,appName:s.appName,showSeason:!!s.showSeason,teamName:s.teamName,club:{c:s.club.c,use3:s.club.use3,use4:s.club.use4,crest:s.club.crest||'',logo:s.club.logo||''},
     events:s.events.map(e=>{const x={id:e.id,type:e.type,date:e.date,time:e.time||'',title:e.title||'',home:e.home!==false,place:e.place||''};
       if(e.poll&&e.type!=='event') x.poll={q:e.poll.q,opts:e.poll.opts,open:!!e.poll.open}; return x;})});
 }
@@ -1095,7 +1095,7 @@ function renderChrome(){
   const words=(S.teamName||'Unsere Mannschaft').trim().split(/\s+/);
   document.getElementById('teamName').innerHTML=words.length>1?`${esc(words.slice(0,-1).join(' '))} <em>${esc(words[words.length-1])}</em>`:`<em>${esc(words[0])}</em>`;
   const y=NOW.getFullYear(), sy=NOW.getMonth()>=6?y:y-1;
-  document.getElementById('season').textContent=`${S.appName||'Mannschaftskasse'} · Saison ${sy}/${String(sy+1).slice(2)}${AUTH.mode==='demo'?' · Demo':''}`;
+  document.getElementById('season').textContent=`${S.appName||'Mannschaftskasse'}${S.showSeason?` · Saison ${sy}/${String(sy+1).slice(2)}`:''}${AUTH.mode==='demo'?' · Demo':''}`;
   document.title=S.appName||'Mannschaftskasse';
   let am=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(am) am.content=(S.appName||'Kasse').slice(0,20);
   const ab=document.getElementById('adminBtn');
@@ -1870,6 +1870,7 @@ function settings(){
       <label class="f grow">Name der App<input type="text" id="sAppName" maxlength="30" value="${esc(S.appName)}" placeholder="Mannschaftskasse"></label>
       <label class="f grow">Name der Mannschaft<input type="text" id="sTeam" value="${esc(S.teamName)}"></label>
     </div>
+    <label class="check"><input type="checkbox" id="sSeason" ${S.showSeason?'checked':''}> Saison im Kopf anzeigen (z. B. „Saison ${(()=>{const y=NOW.getFullYear(),sy=NOW.getMonth()>=6?y:y-1;return sy+'/'+String(sy+1).slice(2);})()}“)</label>
     <p class="hint">Der App-Name erscheint im Kopf, im Browser-Tab, unter dem Symbol auf dem Home-Bildschirm, in Einladungen und in den Namen der Sicherungen.</p>
     <h3>Vereinsfarben</h3>
     <div class="presets">${PRESETS.map((p,i)=>`<button class="preset" data-act="preset" data-v="${i}"><span class="stripes">${p.c.slice(0,3).map(x=>`<i style="background:${x}"></i>`).join('')}</span>${p.n}</button>`).join('')}</div>
@@ -2351,7 +2352,7 @@ document.addEventListener('click',async ev=>{
     if(v==='ask'){ui.confirmReset=true;render();}
     else if(v==='cancel'){ui.confirmReset=false;render();}
     else{ addBackup(JSON.stringify(S),'Vor Zurücksetzen');
-      const keep={teamName:S.teamName,fee:S.fee,rate:S.rate,paypal:S.paypal,order:S.order,club:S.club,statsPublic:S.statsPublic};
+      const keep={teamName:S.teamName,fee:S.fee,rate:S.rate,paypal:S.paypal,order:S.order,club:S.club,statsPublic:S.statsPublic,showSeason:S.showSeason};
       S = v==='sample'?{...sample(),club:keep.club}:{...emptyState(),...keep,demoCodes:{},demoMembers:[],demoLog:S.demoLog};
       normalize(); ui.confirmReset=false; closeForm(); save(); logAction('Daten zurückgesetzt'); render(); toast(v==='sample'?'Beispieldaten geladen':'Daten geleert'); }
     break;
@@ -2391,6 +2392,7 @@ document.addEventListener('change',ev=>{
   if(t.id==='importFile'&&isFull()){const f=t.files&&t.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{try{parseImport(r.result); ui.importText=r.result; ui.confirmDel='import'; render();}catch(e){toast('Die Datei ist keine gültige Sicherung');}}; r.readAsText(f); return;}
   if(!isFull()) return;
   if(t.id==='sTeam'){S.teamName=t.value.trim();commit();}
+  else if(t.id==='sSeason'){S.showSeason=t.checked;commit();}
   else if(t.id==='sAppName'){S.appName=t.value.trim().slice(0,30)||'Mannschaftskasse';commit();}
   else if(t.id==='sFee'){S.fee=Math.max(0,parseFloat(t.value)||0);commit();}
   else if(t.id==='sRate'){S.rate=Math.max(0,parseFloat(t.value)||0);commit();}
@@ -2444,7 +2446,7 @@ if(LIVE_MODE){
   initFirebase().catch(e=>{console.error(e); AUTH.ready=true; AUTH.gate='error'; AUTH.error='Die App konnte nicht geladen werden. Bitte Internetverbindung prüfen.'; render();});
 }else{
   try{S=JSON.parse(ls.get(KEY))}catch(e){}
-  if(!S||!S.players||(S.sample&&S.sampleV!==42)) S=sample();
+  if(!S||!S.players||(S.sample&&S.sampleV!==43)) S=sample();
   normalize(); lastSaved=JSON.stringify(S); render();
 }
 </script>
