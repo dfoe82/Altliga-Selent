@@ -1774,7 +1774,7 @@ function lineupView(){
   </div>`;
   if(ui.form&&adm) return head+`<div class="panel form" style="${secStyle('events')}"><h2>Kader festlegen</h2>${picker()}${saveBar('saveSquad')}</div>`;
   const lines='<span class="pl half"></span><span class="pl circ"></span><span class="pl boxt"></span><span class="pl boxb"></span>';
-  const freeEdit=free&&adm;
+  const freeEdit=free&&adm&&!!ui.freeEditing;
   const pitch=free?`<div class="pitch ${freeEdit?'freeedit':''}" id="fPitch" data-grid="${gridOf(sq)}" ${freeEdit?'':'role="img" aria-label="Freie Aufstellung"'}>${lines}
     ${freeEdit?gridCells(gridOf(sq)).map(z=>`<i class="gp" style="left:${z.x}%;top:${z.y}%"></i>`).join(''):''}
     ${[...starters].map(id=>{const p=pById(id), c=sq.free[id]; return `<div class="pos ${freeEdit?'drag':''} ${ui.freeSel===id?'sel':''}" data-pid="${id}" style="left:${c.x}%;top:${c.y}%">
@@ -1799,7 +1799,8 @@ function lineupView(){
   return head+`<div class="panel" style="${secStyle('events')}">
       <div class="row spread"><h2>Aufstellung · ${free?'Frei':esc(sq.formation)}</h2><span class="hint">${free?`${starters.size} auf dem Feld${starters.size>11?' (mehr als 11)':''}`:`${starters.size} von ${pos.length}`}</span></div>
       ${ids.length?pitch:'<p class="hint">Für dieses Spiel gibt es noch keinen Kader.</p>'}
-      ${freeEdit&&ids.length?`<div class="freebar">${ui.freeSel?`<span><b>${esc(pname(ui.freeSel))}</b> ausgewählt</span><button class="btn ghost sm" data-act="freeBench">Auf die Bank</button>`:`<span class="hint">${starters.size?'Spieler ziehen zum Verschieben, antippen zum Auswählen.':'Tippe unten auf Spieler der Ersatzbank, um sie aufs Feld zu holen.'}</span>`}</div>`:''}
+      ${freeEdit&&ids.length?`<div class="freebar">${ui.freeSel?`<span><b>${esc(pname(ui.freeSel))}</b> ausgewählt</span><button class="btn ghost sm" data-act="freeBench">Auf die Bank</button>`:`<span class="hint">${starters.size?'Spieler ziehen zum Verschieben, antippen zum Auswählen.':'Tippe unten auf Spieler der Ersatzbank, um sie aufs Feld zu holen.'}</span>`}<button class="btn sm" data-act="freeDone">Fertig</button></div>`
+        :free&&adm&&ids.length?`<div class="freebar"><span class="hint">So sehen es die Spieler.</span><button class="btn sm" data-act="freeEditOn">Positionen bearbeiten</button></div>`:''}
       ${ids.length?`<h3>Ersatzbank · ${bench.length}</h3>${bench.length?`<div class="bench">${bench.map(p=>freeEdit?`<button data-act="freeAdd" data-id="${p.id}" aria-label="${esc(p.name)} aufs Feld">${nrBox(p)}${esc(p.name)} <b aria-hidden="true">+</b></button>`:`<span>${nrBox(p)}${esc(p.name)}</span>`).join('')}</div>`:'<p class="hint">Keine Ersatzspieler.</p>'}
         <h3>Kader · ${ids.length}</h3><p class="hint" style="color:var(--ink)">${esc(ids.map(pById).sort((a,b)=>a.name.localeCompare(b.name,'de')).map(p=>(p.nr?p.nr+' ':'')+p.name).join(' · '))}</p>`:''}
     </div>${editor}`;
@@ -2124,7 +2125,7 @@ function render(){
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2600);}
 function closeForm(){ui.form=false;ui.shiftPick=null;ui.shiftEdit=null;ui.editKey=null;ui.sel.clear();ui.draft={title:'',amount:''};ui.ev=blankEv();}
 function toTop(){try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){window.scrollTo(0,0)}}
-function goTab(t){if(t==='settings') ui.playersOpen=false; ui.tab=t;ui.person=null;ui.lineup=null;ui.evDetail=null;ui.reportEdit=false;closeForm();ui.confirmDel=null;render();window.scrollTo(0,0);}
+function goTab(t){ui.freeEditing=false; if(t==='settings') ui.playersOpen=false; ui.tab=t;ui.person=null;ui.lineup=null;ui.evDetail=null;ui.reportEdit=false;closeForm();ui.confirmDel=null;render();window.scrollTo(0,0);}
 function enterCode(raw){
   const c=normCode(raw); if(c.length<8){toast('Bitte den vollständigen Code eingeben');return;}
   ls.set('mk-code',c); AUTH.ready=false; render();
@@ -2313,8 +2314,8 @@ document.addEventListener('click',async ev=>{
   case 'goto': goTab(v); break;
   case 'person': ui.person=id; ui.lineup=null; ui.py=NOW.getFullYear(); ui.confirmDel=null; render(); window.scrollTo(0,0); break;
   case 'back': ui.person=null; ui.confirmDel=null; render(); break;
-  case 'lineup': closeForm(); ui.freeSel=null; ui.lineup=v; ui.person=null; ui.confirmDel=null; render(); window.scrollTo(0,0); break;
-  case 'lineupBack': closeForm(); ui.lineup=null; ui.tab='events'; ui.confirmDel=null; render(); break;
+  case 'lineup': closeForm(); ui.freeSel=null; ui.freeEditing=false; ui.lineup=v; ui.person=null; ui.confirmDel=null; render(); window.scrollTo(0,0); break;
+  case 'lineupBack': closeForm(); ui.freeEditing=false; ui.lineup=null; ui.tab='events'; ui.confirmDel=null; render(); break;
   case 'pyPrev': ui.py--; render(); break;
   case 'pyNext': ui.py++; render(); break;
   case 'payAll': {const ms=yearMonths(ui.py); MONEY.filter(k=>can(k)).forEach(k=>ms.forEach(m=>setPaid(k,ui.person,m))); ui.confirmDel=null; commit(); toast('Als bezahlt markiert'); break;}
@@ -2379,11 +2380,13 @@ document.addEventListener('click',async ev=>{
     sq.ids=[...ui.sel]; Object.keys(sq.slots).forEach(k=>{if(!ui.sel.has(sq.slots[k])) delete sq.slots[k];});
     if(sq.free) Object.keys(sq.free).forEach(id=>{if(!ui.sel.has(id)) delete sq.free[id];});
     e.squad=sq; closeForm(); commit(); toast(`Kader mit ${sq.ids.length} Spielern gespeichert`); break;}
+  case 'freeEditOn': ui.freeEditing=true; ui.freeSel=null; render(); break;
+  case 'freeDone': ui.freeEditing=false; ui.freeSel=null; render(); toast('Aufstellung gespeichert'); break;
   case 'freeAdd': case 'freeBench': case 'freeClear': {
     const e=S.events.find(x=>x.id===ui.lineup); if(!e||!e.squad||!can('events')) return; const sq=e.squad; sq.free=sq.free||{};
     if(a==='freeAdd'){ sq.free[id]=freeSpot(sq); ui.freeSel=id; commit(); toast(`${pname(id)} steht auf dem Feld – jetzt an die richtige Stelle ziehen`); }
     else if(a==='freeBench'){ if(ui.freeSel){ delete sq.free[ui.freeSel]; toast(`${pname(ui.freeSel)} auf der Bank`); ui.freeSel=null; commit(); } }
-    else { sq.free={}; ui.freeSel=null; commit(); toast('Alle auf der Bank'); }
+    else { sq.free={}; ui.freeSel=null; ui.freeEditing=true; commit(); toast('Alle auf der Bank'); }
     break;}
   case 'vote': {const e=S.events.find(x=>x.id===v); if(e&&e.poll&&e.poll.open) doVote(e,+b.dataset.i); break;}
   case 'pollNames': ui.showNames=ui.showNames===v?null:v; render(); break;
@@ -2477,10 +2480,10 @@ document.addEventListener('change',ev=>{
         const lineY=y=>{const near=P.filter(f=>Math.abs(f[2]-y)<=8); return near.reduce((a,f)=>a+f[2],0)/near.length;};
         Object.entries(sq.slots||{}).forEach(([k,pid])=>{const c=P[+k]; if(c&&sq.ids.includes(pid)) sq.free[pid]={x:c[1],y:lineY(c[2])};}); }
       if(sq.grid==null) sq.grid=5; snapAll(sq);
-      toast('Freie Aufstellung: Spieler auf dem Feld ziehen');
+      ui.freeEditing=true; toast('Freie Aufstellung: Spieler auf dem Feld ziehen');
     }else{ const n=FORMS[t.value].length; Object.keys(sq.slots||{}).forEach(k=>{if(+k>=n) delete sq.slots[k];}); }
     commit();} return;}
-  if(t.id==='lGrid'&&can('events')){const e=S.events.find(x=>x.id===ui.lineup); if(e&&e.squad){e.squad.grid=+t.value; snapAll(e.squad); ui.freeSel=null; commit(); toast(+t.value?`Raster: ${GRIDS[t.value]}`:'Ohne Raster – ganz frei');} return;}
+  if(t.id==='lGrid'&&can('events')){const e=S.events.find(x=>x.id===ui.lineup); if(e&&e.squad){e.squad.grid=+t.value; snapAll(e.squad); ui.freeSel=null; ui.freeEditing=true; commit(); toast(+t.value?`Raster: ${GRIDS[t.value]}`:'Ohne Raster – ganz frei');} return;}
   if(t.dataset.slot!==undefined&&can('events')){const e=S.events.find(x=>x.id===ui.lineup); if(e&&e.squad){const sl=e.squad.slots; Object.keys(sl).forEach(k=>{if(sl[k]===t.value) delete sl[k];}); if(t.value) sl[t.dataset.slot]=t.value; else delete sl[t.dataset.slot]; commit();} return;}
   if(t.id==='importFile'&&isFull()){const f=t.files&&t.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{try{parseImport(r.result); ui.importText=r.result; ui.confirmDel='import'; render();}catch(e){toast('Die Datei ist keine gültige Sicherung');}}; r.readAsText(f); return;}
   if(!isFull()) return;
