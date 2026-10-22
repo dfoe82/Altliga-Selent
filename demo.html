@@ -375,6 +375,9 @@ table.grid{border-collapse:separate;border-spacing:0;font-size:13.5px;width:100%
 .pubbar{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--c2);border-radius:6px;padding:8px 8px 8px 12px;font-size:13.5px;font-weight:600;flex-wrap:wrap}
 .pubbar small{display:block;font-weight:500;color:var(--muted)}
 .report{white-space:pre-wrap;line-height:1.5;overflow-wrap:anywhere}
+.pubrep{grid-column:1/-1;border-top:1px dashed var(--line);padding-top:6px}
+.pubrep summary{cursor:pointer;font-weight:700;font-size:13.5px}
+.pubrep .report{margin-top:6px}
 .result{font-family:var(--display);font-weight:400;font-size:30px;line-height:1}
 .cmts{display:grid;gap:8px}
 .cmt{display:grid;gap:2px;background:var(--bg);border-radius:8px;padding:8px 10px}
@@ -566,7 +569,7 @@ function readImg(file,cb){
 
 /* ---------- Grunddaten ---------- */
 function emptyState(){
-  return {sample:false,appName:'Mannschaftskasse',teamName:'Unsere Mannschaft',fee:10,rate:3,paypal:'',statsPublic:false,amountsPublic:false,publicView:false,birth:{},
+  return {sample:false,appName:'Mannschaftskasse',teamName:'Unsere Mannschaft',fee:10,rate:3,paypal:'',statsPublic:false,amountsPublic:false,publicView:false,birth:{},reports:{},
     club:{c:[...PRESETS[0].c],use3:true,use4:true,crest:'',logo:''},order:['drinks','team','misc'],
     players:[],days:[],misc:[],paid:{team:{},drinks:{}},events:[],archive:[]};
 }
@@ -576,6 +579,9 @@ function normalize(){
   S.order=S.order.filter(k=>MONEY.includes(k)); MONEY.forEach(k=>{if(!S.order.includes(k)) S.order.push(k)});
   if(S.club.use3===undefined) S.club.use3=true;
   S.paid.team=S.paid.team||{}; S.paid.drinks=S.paid.drinks||{};
+  /* Berichte liegen getrennt von den Terminen (eigene Sichtbarkeit); ältere Daten übernehmen */
+  S.reports=S.reports||{};
+  S.events.forEach(e=>{ if(e.report){ if(!S.reports[e.id]){ S.reports[e.id]={...e.report,vis:'team',result:e.result||''}; if(AUTH.mode==='live') LIVE.migrate[e.id]=S.reports[e.id]; } delete e.report; } });
 }
 function sample(){
   const names=['Jonny','Lu','Finne','Malle','Timbo','Nikki','JT','Olli','Hauke','Kalle','Sörre','Benni','Mo','Henne','Lasse','Toto','Phil','J.O.','Marv','Fabi',
@@ -611,7 +617,7 @@ function sample(){
     {id:uid(),e:kohl.id,k:'event',a:'demo-full',an:'Kassenwart',t:'Busanteil bitte bis Ende des Monats überweisen.',ts:Date.now()-170e6}];
   const members=ids.filter((id,i)=>codes[id]&&i%4!==1).map((id,i)=>({p:id,code:codes[id],seen:Date.now()-(i%6)*86400000*(1+i%3)}));
   const out={
-    ...emptyState(), sample:true, sampleV:40,
+    ...emptyState(), reports:{}, sample:true, sampleV:41,
     players,
     days:[
       {date:prev2+'-12',att:pickN(8,26)},{date:prev2+'-26',att:pickN(9,29)},
@@ -639,6 +645,7 @@ function sample(){
     archive:[{id:uid(),evId:g1.id,date:g1.date,title:'Heimspiel gegen TSV Nordheim',type:'game',q:RSVPQ.game,opts:[...RSVP],counts:archCounts,names:archNames,total:players.length,closed:TODAY}],
     birth, demoCodes:codes, demoMembers:members, demoLog:[], demoComments
   };
+  out.events.forEach(e=>{ if(e.report){ out.reports[e.id]={...e.report,vis:e.id===g1.id?'all':'team',result:e.result||''}; delete e.report; } });
   /* Ein Drittel der Mannschaft hat alles bezahlt */
   ids.forEach((id,i)=>{ if(i%3!==2) return;
     [prev2,prev,cur].forEach(k=>{out.paid.team[id+'|'+k]=true; out.paid.drinks[id+'|'+k]=true;});
@@ -683,7 +690,7 @@ ui.ev=blankEv();
 /* ---------- Online (Firebase) ---------- */
 const FB={};
 const LIVE={parts:{},loaded:new Set(),votes:{},synced:{},unsubs:[],admins:[],invites:[],codes:{},members:[],backups:[],log:[],pending:false,
-  comments:[],balance:null,balances:{},balLoaded:false,pubJson:undefined,derivedDone:false,derivedTimer:null};
+  comments:[],balance:null,balances:{},balLoaded:false,pubJson:undefined,derivedDone:false,derivedTimer:null,rep:{},migrate:{}};
 const BASE_PARTS=['main','players','drinks','fees','misc','events','archive'];
 const partList=()=>AUTH.admin&&AUTH.admin.role!=='part'?[...BASE_PARTS,'private']:BASE_PARTS;
 /* Vergleich unabhängig von der Reihenfolge der Felder */
@@ -709,12 +716,20 @@ async function tryPublic(){
     AUTH.public=true; AUTH.gate=null; AUTH.ready=false; render();
     LIVE.unsubs.push(FB.onSnapshot(D('team','public'),d=>{LIVE.parts.public=d.exists()?d.data():null; if(!LIVE.parts.public||!LIVE.parts.public.on){AUTH.public=false;AUTH.gate='code';AUTH.ready=true;render();return;} buildPublicS(); AUTH.ready=true; schedule();},()=>{}));
     LIVE.unsubs.push(FB.onSnapshot(FB.collection(FB.db,'votes'),qs=>{const v={}; qs.forEach(d=>{const x=d.data(); (v[x.e]=v[x.e]||{})[x.p]=x.i;}); LIVE.votes=v; if(LIVE.parts.public){buildPublicS(); schedule();}},()=>{}));
+    subscribeReports(['all'],()=>{if(LIVE.parts.public){buildPublicS(); schedule();}});
   }else{ AUTH.public=false; AUTH.ready=true; AUTH.gate='code'; render(); }
 }
+/* Berichte je nach Rolle abonnieren: Admins alle, Spieler „Alle“ + „Mannschaft“, Öffentlich nur „Alle“ */
+function subscribeReports(kinds,after){
+  const put=(key,qs)=>{const m={}; qs.forEach(d=>{m[d.id]=d.data();}); LIVE.rep[key]=m; after();};
+  if(kinds==='all') LIVE.unsubs.push(FB.onSnapshot(FB.collection(FB.db,'reports'),qs=>put('all',qs),()=>{}));
+  else kinds.forEach(v=>LIVE.unsubs.push(FB.onSnapshot(FB.query(FB.collection(FB.db,'reports'),FB.where('vis','==',v)),qs=>put(v,qs),()=>{})));
+}
+const liveReports=()=>Object.assign({},...Object.values(LIVE.rep));
 function buildPublicS(){
   const P=LIVE.parts.public||{}, d=emptyState();
   S={...d,appName:P.appName||d.appName,teamName:P.teamName||d.teamName,club:{...d.club,...(P.club||{})},
-    events:(P.events||[]).map(e=>e.poll?{...e,poll:{...e.poll,votes:{...(LIVE.votes[e.id]||{})}}}:e)};
+    events:(P.events||[]).map(e=>e.poll?{...e,poll:{...e.poll,votes:{...(LIVE.votes[e.id]||{})}}}:e),reports:liveReports()};
   normalize();
 }
 async function refreshAccess(user){
@@ -750,7 +765,7 @@ async function refreshAccess(user){
   AUTH.gate=null; ui.adminView=!!AUTH.admin;
   subscribeAll();
 }
-function unsubscribeAll(){LIVE.unsubs.forEach(f=>{try{f()}catch(e){}}); LIVE.unsubs=[]; LIVE.loaded=new Set(); LIVE.parts={}; LIVE.balance=null; LIVE.balances={}; LIVE.balLoaded=false; LIVE.pubJson=undefined; LIVE.comments=[];}
+function unsubscribeAll(){LIVE.unsubs.forEach(f=>{try{f()}catch(e){}}); LIVE.unsubs=[]; LIVE.loaded=new Set(); LIVE.parts={}; LIVE.balance=null; LIVE.balances={}; LIVE.balLoaded=false; LIVE.pubJson=undefined; LIVE.comments=[]; LIVE.rep={};}
 function subscribeAll(){
   unsubscribeAll(); AUTH.ready=false; render();
   const err=e=>{console.warn(e);};
@@ -758,6 +773,7 @@ function subscribeAll(){
   LIVE.unsubs.push(FB.onSnapshot(FB.collection(FB.db,'votes'),qs=>{const v={}; qs.forEach(d=>{const x=d.data(); (v[x.e]=v[x.e]||{})[x.p]=x.i;}); LIVE.votes=v; onLiveData();},err));
   LIVE.unsubs.push(FB.onSnapshot(FB.collection(FB.db,'comments'),qs=>{LIVE.comments=qs.docs.map(d=>{const x=d.data(); return {id:d.id,...x,ts:x.ts&&x.ts.toMillis?x.ts.toMillis():Date.now()};}); schedule();},err));
   if(AUTH.member&&!AUTH.admin) LIVE.unsubs.push(FB.onSnapshot(D('balances',AUTH.member.p),s=>{LIVE.balance=s.exists()?s.data():null; onLiveData();},()=>{}));
+  subscribeReports(AUTH.admin?'all':['all','team'],()=>onLiveData());
   const a=AUTH.admin; if(!a) return;
   LIVE.unsubs.push(FB.onSnapshot(D('team','public'),s=>{LIVE.pubJson=s.exists()?stable(s.data()):'null'; maybeSyncDerived();},err));
   LIVE.unsubs.push(FB.onSnapshot(FB.collection(FB.db,'balances'),qs=>{const b={}; qs.forEach(d=>{b[d.id]=stable(d.data());}); LIVE.balances=b; LIVE.balLoaded=true; maybeSyncDerived();},err));
@@ -792,7 +808,8 @@ function buildS(){
     days:(P.drinks&&P.drinks.days)||[], paid:{drinks:(P.drinks&&P.drinks.paid)||{},team:(P.fees&&P.fees.paid)||{}},
     misc:(P.misc&&P.misc.items)||[],
     events:Object.values((P.events&&P.events.map)||{}).map(e=>e.poll?{...e,poll:{...e.poll,votes:{...(LIVE.votes[e.id]||{})}}}:e),
-    archive:((P.archive&&P.archive.list)||[]).map(a=>({...a,names:(a.names||[]).map(x=>Array.isArray(x)?x:(x&&x.l)||[])}))};
+    archive:((P.archive&&P.archive.list)||[]).map(a=>({...a,names:(a.names||[]).map(x=>Array.isArray(x)?x:(x&&x.l)||[])})),
+    reports:liveReports()};
   /* Spieler ohne Einblick in alle Beträge: eigene Daten aus dem persönlichen Saldo */
   if(!P.drinks&&!P.fees&&!P.misc&&AUTH.member&&LIVE.balance){
     const b=LIVE.balance, pid=AUTH.member.p;
@@ -833,6 +850,8 @@ async function persistLive(){
   if(!AUTH.admin) return;
   const parts=partsOf(S), changed=[], ops=[];
   for(const k of partList()){const j=JSON.stringify(parts[k]); if(j!==LIVE.synced[k]){changed.push(k); ops.push({ref:D('team',k),data:parts[k],k,j});}}
+  const evRight=AUTH.admin.role!=='part'||(AUTH.admin.areas||[]).includes('events');
+  if(evRight) Object.entries(LIVE.migrate).forEach(([eid,r])=>ops.push({ref:D('reports',eid),data:clean(r),mig:eid}));
   if(LIVE.balLoaded&&LIVE.pubJson!==undefined){
     const pub=publicOf(S), pj=stable(pub); if(pj!==LIVE.pubJson) ops.push({ref:D('team','public'),data:pub,pub:pj});
     const seen=new Set();
@@ -840,7 +859,7 @@ async function persistLive(){
     Object.keys(LIVE.balances).forEach(pid=>{if(!seen.has(pid)) ops.push({ref:D('balances',pid),del:true,bal:pid});});
   }
   if(!ops.length) return;
-  ops.forEach(o=>{ if(o.k) LIVE.synced[o.k]=o.j; if(o.pub) LIVE.pubJson=o.pub; if(o.bal){ if(o.del) delete LIVE.balances[o.bal]; else LIVE.balances[o.bal]=o.j; } });
+  ops.forEach(o=>{ if(o.mig) delete LIVE.migrate[o.mig]; if(o.k) LIVE.synced[o.k]=o.j; if(o.pub) LIVE.pubJson=o.pub; if(o.bal){ if(o.del) delete LIVE.balances[o.bal]; else LIVE.balances[o.bal]=o.j; } });
   try{
     for(let i=0;i<ops.length;i+=400){const b=FB.writeBatch(FB.db); ops.slice(i,i+400).forEach(o=>o.del?b.delete(o.ref):b.set(o.ref,o.data)); await b.commit();}
     lastSaved=JSON.stringify(S);
@@ -1420,9 +1439,10 @@ function evCard(e,cls,isNext){
   const typeBadge=e.type==='game'?(e.home?'Spiel · Heim':'Spiel · Auswärts'):ETYPE[e.type];
   if(isPublic()) return `<div class="ev ${cls}"><div class="cal"><span>${wd(e.date)}</span><b>${+d}</b><span>${MONTHS[+m-1].slice(0,3)}</span></div>
     <div style="min-width:0"><div class="t">${esc(evTitle(e))}</div><div class="s">${[e.time?e.time+' Uhr':'',esc(e.place)].filter(Boolean).join(' · ')}</div>
-    <div class="tags">${isNext?'<span class="badge nx">Nächster</span>':''}<span class="badge ${e.type==='training'?'tr':''}">${typeBadge}</span></div></div></div>`;
+    <div class="tags">${isNext?'<span class="badge nx">Nächster</span>':''}<span class="badge ${e.type==='training'?'tr':''}">${typeBadge}</span>${reportOf(e.id)&&reportOf(e.id).result?`<span class="badge">${esc(reportOf(e.id).result)}</span>`:''}</div></div>
+    ${reportOf(e.id)?`<details class="pubrep"><summary>${e.type==='game'?'Spielbericht':'Bericht'}</summary><div class="report">${esc(reportOf(e.id).text)}</div></details>`:''}</div>`;
   const nc=commentsOf(e.id).length;
-  const foot=[e.result?`Ergebnis ${esc(e.result)}`:'',e.report&&e.report.text?'Bericht':'',e.comments||nc?`💬 ${nc}`:''].filter(Boolean).join(' · ');
+  const foot=[e.result?`Ergebnis ${esc(e.result)}`:'',reportOf(e.id)?'Bericht':'',e.comments||nc?`💬 ${nc}`:''].filter(Boolean).join(' · ');
   const acts=adm||can('drinks')?`<div class="evact">${adm?`<div style="display:flex"><button class="edit" data-act="editEvent" data-v="${e.id}">Bearbeiten</button><button class="x" data-act="askDel" data-v="${key}" aria-label="Termin löschen">×</button></div>`:''}
       ${can('drinks')&&e.date<=TODAY?`<button class="edit" data-act="evDrinks" data-v="${e.date}">Getränke erfassen</button>`:''}</div>`:'';
   return `<div class="ev ${cls}"><div class="cal"><span>${wd(e.date)}</span><b>${+d}</b><span>${MONTHS[+m-1].slice(0,3)}</span></div>
@@ -1433,18 +1453,28 @@ function evCard(e,cls,isNext){
     ${acts}${ui.confirmDel===key?confirmBox(key,'',e.poll&&Object.keys(e.poll.votes||{}).length?'Termin löschen? Die Umfrage wird vorher gespeichert.':'Termin löschen?'):''}${squadLine(e)}${pollBox(e,false)}
     <div class="evfoot"><button class="btn ghost sm" data-act="evOpen" data-v="${e.id}">${foot?foot+' · ':''}Details ›</button></div></div>`;
 }
+const VIS={team:'Nur Mannschaft',all:'Alle (auch öffentlich)',admin:'Nur Admins'};
+function reportOf(eid){
+  const r=(S.reports||{})[eid]; if(!r||!(r.text||'').trim()) return null;
+  if(r.vis==='all') return r;
+  if(r.vis==='admin') return me()?r:null;
+  return isPublic()?null:r;
+}
 function evDetailView(){
   const e=S.events.find(x=>x.id===ui.evDetail); if(!e){ui.evDetail=null;return eventsView();}
   const adm=can('events'), [,m,d]=e.date.split('-');
   const typeBadge=e.type==='game'?(e.home?'Spiel · Heim':'Spiel · Auswärts'):ETYPE[e.type];
-  const rep=e.report&&e.report.text?e.report:null;
+  const rep=reportOf(e.id), raw=(S.reports||{})[e.id]||{}, vis=raw.vis||ui.repVis||'team';
   const reportPanel=ui.reportEdit&&adm?`<div class="panel form nobar"><h2>${e.type==='game'?'Spielbericht':'Bericht'}</h2>
+      <div class="f" style="font-size:12.5px;color:var(--muted);font-weight:600">Sichtbar für
+        <div class="seg wide" role="group" aria-label="Sichtbarkeit des Berichts">${['team','all','admin'].map(k=>`<button data-act="repVis" data-v="${k}" aria-pressed="${(ui.repVis||vis)===k}">${k==='team'?'Mannschaft':k==='all'?'Alle':'Nur Admins'}</button>`).join('')}</div></div>
+      <p class="hint">${{team:'Nur Spieler mit Code und Admins.',all:'Auch in der öffentlichen Ansicht (wenn eingeschaltet).',admin:'Nur Admins – Spieler sehen den Bericht nicht.'}[ui.repVis||vis]}</p>
       ${e.type==='game'?`<label class="f" style="max-width:160px">Ergebnis<input type="text" id="rResult" value="${esc(e.result||'')}" placeholder="z. B. 2:1" maxlength="10"></label>`:''}
-      <label class="f">Text<textarea id="rText" style="min-height:160px" placeholder="Was ist passiert? Besonderheiten, Dank, Hinweise …">${esc(rep?rep.text:'')}</textarea></label>
+      <label class="f">Text<textarea id="rText" style="min-height:160px" placeholder="Was ist passiert? Besonderheiten, Dank, Hinweise …">${esc(raw.text||'')}</textarea></label>
       <div class="row"><button class="btn" data-act="reportSave">Speichern</button><button class="btn ghost" data-act="reportCancel">Abbrechen</button></div></div>`
     :(rep||e.result||adm)?`<div class="panel"><div class="row spread"><h2>${e.type==='game'?'Spielbericht':'Bericht'}</h2>${adm?`<button class="btn ghost sm" data-act="reportEdit">${rep||e.result?'Bearbeiten':'Bericht schreiben'}</button>`:''}</div>
       ${e.result?`<div class="result">${esc(e.result)}</div>`:''}
-      ${rep?`<div class="report">${esc(rep.text)}</div><p class="hint">${esc(rep.by||'')} · ${fmtTs(rep.ts||Date.now())}</p>`:'<p class="hint">Noch kein Bericht.</p>'}</div>`:'';
+      ${rep?`<div class="report">${esc(rep.text)}</div><p class="hint">${esc(rep.by||'')} · ${fmtTs(rep.ts||Date.now())}${me()?` · <span class="badge">${VIS[rep.vis||'team']}</span>`:''}</p>`:'<p class="hint">Noch kein Bericht.</p>'}</div>`:'';
   return `<div class="panel" style="${secStyle('events')}">
       <button class="back" data-act="evBack">‹ Termine</button>
       <div class="row" style="flex-wrap:nowrap;align-items:center;gap:12px"><div class="cal" style="width:56px;flex:none"><span>${wd(e.date)}</span><b>${+d}</b><span>${MONTHS[+m-1].slice(0,3)}</span></div>
@@ -2008,13 +2038,19 @@ document.addEventListener('click',async ev=>{
   case 'copyPublic': copy(appLink(''),'Öffentlicher Link kopiert'); break;
   case 'amountsVis': if(isFull()){S.amountsPublic=v==='all'; commit(); toast(S.amountsPublic?'Beträge für alle sichtbar':'Jeder sieht nur seine eigenen Beträge');} break;
   case 'publicVis': if(isFull()){S.publicView=v==='on'; commit(); toast(S.publicView?'Öffentlicher Zugang eingeschaltet':'Öffentlicher Zugang ausgeschaltet');} break;
-  case 'reportEdit': if(can('events')){ui.reportEdit=true; render();} break;
-  case 'reportCancel': ui.reportEdit=false; render(); break;
+  case 'reportEdit': if(can('events')){ui.reportEdit=true; ui.repVis=null; render();} break;
+  case 'reportCancel': ui.reportEdit=false; ui.repVis=null; render(); break;
+  case 'repVis': {const ta=document.getElementById('rText'), rr=document.getElementById('rResult'); const keep={t:ta?ta.value:'',r:rr?rr.value:''};
+    ui.repVis=v; render(); const ta2=document.getElementById('rText'), rr2=document.getElementById('rResult'); if(ta2) ta2.value=keep.t; if(rr2) rr2.value=keep.r; break;}
   case 'reportSave': {const e=S.events.find(x=>x.id===ui.evDetail); if(!e||!can('events')) return;
-    const t=(document.getElementById('rText')||{}).value||'', r=document.getElementById('rResult');
-    if(t.trim()) e.report={text:t.trim().slice(0,5000),by:me().name,ts:Date.now()}; else delete e.report;
+    const t=((document.getElementById('rText')||{}).value||'').trim().slice(0,5000), r=document.getElementById('rResult');
+    const old=(S.reports||{})[e.id]||{}, vis=ui.repVis||old.vis||'team';
     if(r){ const rv=r.value.trim().slice(0,10); if(rv) e.result=rv; else delete e.result; }
-    ui.reportEdit=false; commit(); toast('Bericht gespeichert'); break;}
+    const rec=t?{text:t,by:me().name,ts:Date.now(),vis,result:e.result||''}:null;
+    S.reports=S.reports||{}; if(rec) S.reports[e.id]=rec; else delete S.reports[e.id];
+    ui.reportEdit=false; ui.repVis=null; commit();
+    if(AUTH.mode==='live'){ try{ if(rec) await FB.setDoc(D('reports',e.id),rec); else await FB.deleteDoc(D('reports',e.id)); logAction(`Bericht ${rec?'gespeichert':'gelöscht'}: ${evTitle(e)}`); }catch(err){ console.warn(err); toast('Bericht konnte nicht gespeichert werden'); break; } }
+    toast(rec?`Bericht gespeichert · ${VIS[vis]}`:'Bericht entfernt'); break;}
   case 'signOut': ui.modal=null; renderModal(); ui.adminView=false; if(FB.auth) await FB.signOut(FB.auth).catch(()=>{}); toast('Abgemeldet'); break;
   case 'reload': location.reload(); break;
   case 'gateGo': enterCode(document.getElementById('gateCode').value); break;
@@ -2213,7 +2249,7 @@ if(!LIVE_MODE) window.addEventListener('message',ev=>{
   else if(d.role==='player'){ui.demoAdmin=null;ui.adminView=false;ui.voter=debtor();}
   else if(d.role==='public'){ui.demoAdmin=null;ui.adminView=false;ui.demoPublic=true;}
   const nextGame=S.events.filter(e=>e.type==='game'&&e.date>=TODAY&&e.squad).sort((a,b)=>a.date.localeCompare(b.date))[0];
-  const reported=S.events.filter(e=>e.report).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const reported=S.events.filter(e=>reportOf(e.id)).sort((a,b)=>b.date.localeCompare(a.date))[0];
   switch(d.view){
     case 'events': ui.tab='events'; break;
     case 'roster': ui.tab='roster'; break;
@@ -2236,7 +2272,7 @@ if(LIVE_MODE){
   initFirebase().catch(e=>{console.error(e); AUTH.ready=true; AUTH.gate='error'; AUTH.error='Die App konnte nicht geladen werden. Bitte Internetverbindung prüfen.'; render();});
 }else{
   try{S=JSON.parse(ls.get(KEY))}catch(e){}
-  if(!S||!S.players||(S.sample&&S.sampleV!==40)) S=sample();
+  if(!S||!S.players||(S.sample&&S.sampleV!==41)) S=sample();
   normalize(); lastSaved=JSON.stringify(S); render();
 }
 </script>
