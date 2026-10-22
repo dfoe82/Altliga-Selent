@@ -310,6 +310,7 @@ textarea{min-height:84px;resize:vertical}
 .pos.dragging{z-index:6;cursor:grabbing}
 .pos.dragging .dp{transform:scale(1.15)}
 .pos.out{opacity:.45}
+.gp{position:absolute;width:6px;height:6px;border-radius:50%;background:#ffffff66;transform:translate(-50%,-50%);pointer-events:none}
 .freebar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13.5px;min-height:34px}
 .bench .nr{width:24px;height:24px;font-size:13px;border-radius:50%}
 .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px}
@@ -520,11 +521,33 @@ const FREE='Frei';
 const isFree=sq=>!!sq&&sq.formation===FREE;
 /* Wer steht auf dem Feld? Bei „Frei“ alle mit Position, sonst die besetzten Positionen */
 const starterIds=sq=>!sq?[]:isFree(sq)?Object.keys(sq.free||{}).filter(id=>sq.ids.includes(id)):Object.values(sq.slots||{}).filter(id=>sq.ids.includes(id));
+/* Raster für die freie Aufstellung: Spalten 0 (aus), 5, 7 oder 9; Zeilen passend zum Seitenverhältnis des Felds */
+const GRIDS={0:'Aus – ganz frei',5:'Grob (5 Spalten)',7:'Mittel (7 Spalten)',9:'Fein (9 Spalten)'};
+const gridOf=sq=>sq&&sq.grid!=null?sq.grid:5;
+const r1=v=>Math.round(v*10)/10;
+function gridCells(c){ if(!c) return []; const r=Math.round(c*100/68), out=[]; for(let j=0;j<r;j++) for(let i=0;i<c;i++) out.push({x:r1((i+.5)/c*100),y:r1((j+.5)/r*100)}); return out; }
+function snapTo(c,x,y){ if(!c) return {x:r1(x),y:r1(y)}; const r=Math.round(c*100/68);
+  const i=Math.max(0,Math.min(c-1,Math.floor(x/100*c))), j=Math.max(0,Math.min(r-1,Math.floor(y/100*r)));
+  return {x:r1((i+.5)/c*100),y:r1((j+.5)/r*100)}; }
+const samePos=(a,b)=>a&&b&&Math.hypot(a.x-b.x,a.y-b.y)<1.5;
+/* Freien Platz suchen: nächste freie Rasterzelle (oder Punkt) zum Wunschort */
+function nearestFree(sq,want,skip){
+  const c=gridOf(sq), used=Object.entries(sq.free||{}).filter(([id])=>id!==skip).map(([,v])=>v);
+  const t=snapTo(c,want.x,want.y); if(!used.some(u=>c?samePos(u,t):Math.hypot(u.x-t.x,u.y-t.y)<9)) return t;
+  const cells=c?gridCells(c):[...FORMS['4-4-2'].map(f=>({x:f[1],y:f[2]})),{x:50,y:34},{x:50,y:62},{x:26,y:58},{x:74,y:58},{x:50,y:8}];
+  const free=cells.filter(z=>!used.some(u=>c?samePos(u,z):Math.hypot(u.x-z.x,u.y-z.y)<9)).sort((a,b)=>Math.hypot(a.x-want.x,a.y-want.y)-Math.hypot(b.x-want.x,b.y-want.y));
+  return free[0]||t;
+}
 function freeSpot(sq){
-  const used=Object.values(sq.free||{});
-  const cand=[...FORMS['4-4-2'].map(c=>[c[1],c[2]]),[50,34],[50,62],[26,58],[74,58],[50,8]];
-  for(const [x,y] of cand) if(!used.some(u=>Math.hypot(u.x-x,u.y-y)<9)) return {x,y};
-  return {x:50,y:50};
+  const order=[...FORMS['4-4-2'].map(f=>({x:f[1],y:f[2]})),{x:50,y:34},{x:50,y:62}];
+  const c=gridOf(sq), used=Object.values(sq.free||{});
+  for(const w of order){ const t=snapTo(c,w.x,w.y); if(!used.some(u=>c?samePos(u,t):Math.hypot(u.x-t.x,u.y-t.y)<9)) return t; }
+  return nearestFree(sq,{x:50,y:50});
+}
+/* Alle Spieler aufs Raster setzen, Doppelbelegungen auf die nächste freie Zelle */
+function snapAll(sq){
+  const old=Object.entries(sq.free||{}).sort((a,b)=>b[1].y-a[1].y||a[1].x-b[1].x); sq.free={};
+  old.forEach(([id,v])=>{ sq.free[id]=nearestFree(sq,v,id); });
 }
 const FORMS={
   '4-4-2':[['TW',50,90],['LV',14,70],['IV',37,74],['IV',63,74],['RV',86,70],['LM',14,46],['ZM',37,50],['ZM',63,50],['RM',86,46],['ST',36,19],['ST',64,19]],
@@ -1752,7 +1775,8 @@ function lineupView(){
   if(ui.form&&adm) return head+`<div class="panel form" style="${secStyle('events')}"><h2>Kader festlegen</h2>${picker()}${saveBar('saveSquad')}</div>`;
   const lines='<span class="pl half"></span><span class="pl circ"></span><span class="pl boxt"></span><span class="pl boxb"></span>';
   const freeEdit=free&&adm;
-  const pitch=free?`<div class="pitch ${freeEdit?'freeedit':''}" id="fPitch" ${freeEdit?'':'role="img" aria-label="Freie Aufstellung"'}>${lines}
+  const pitch=free?`<div class="pitch ${freeEdit?'freeedit':''}" id="fPitch" data-grid="${gridOf(sq)}" ${freeEdit?'':'role="img" aria-label="Freie Aufstellung"'}>${lines}
+    ${freeEdit?gridCells(gridOf(sq)).map(z=>`<i class="gp" style="left:${z.x}%;top:${z.y}%"></i>`).join(''):''}
     ${[...starters].map(id=>{const p=pById(id), c=sq.free[id]; return `<div class="pos ${freeEdit?'drag':''} ${ui.freeSel===id?'sel':''}" data-pid="${id}" style="left:${c.x}%;top:${c.y}%">
       <span class="dp">${esc(p.nr||initials(p.name))}</span><span class="pn">${esc(p.name)}</span></div>`;}).join('')}
   </div>`:`<div class="pitch" role="img" aria-label="Aufstellung ${esc(sq.formation)}">
@@ -1764,7 +1788,8 @@ function lineupView(){
   const editor=adm?`<div class="panel" style="${secStyle('events')}">
       <div class="row spread"><h2>Aufstellung bearbeiten</h2><button class="btn ghost sm" data-act="editSquad">Kader ändern (${ids.length})</button></div>
       <label class="f" style="max-width:280px">Spielsystem<select id="lFormation">${Object.keys(FORMS).map(f=>`<option ${f===sq.formation?'selected':''}>${f}</option>`).join('')}<option value="${FREE}" ${free?'selected':''}>Frei – selbst positionieren</option></select></label>
-      ${free?`<p class="hint">Spieler auf dem Feld mit dem Finger an die gewünschte Stelle ziehen. Aus der Ersatzbank antippen, um jemanden aufs Feld zu holen. Zum Herausnehmen antippen und „Auf die Bank“ wählen oder vom Feld ziehen.</p>
+      ${free?`<label class="f" style="max-width:280px">Raster<select id="lGrid">${Object.entries(GRIDS).map(([k,l])=>`<option value="${k}" ${+k===gridOf(sq)?'selected':''}>${l}</option>`).join('')}</select></label>
+        <p class="hint">${gridOf(sq)?'Mit Raster rasten die Spieler auf dem nächsten Punkt ein – so stehen Reihen gerade und symmetrisch. Ziehst du jemanden auf einen besetzten Punkt, tauschen beide die Plätze. ':''}Spieler auf dem Feld mit dem Finger an die gewünschte Stelle ziehen. Aus der Ersatzbank antippen, um jemanden aufs Feld zu holen. Zum Herausnehmen antippen und „Auf die Bank“ wählen oder vom Feld ziehen.</p>
         ${starters.size?'<button class="edit" style="justify-self:start" data-act="freeClear">Alle auf die Bank</button>':''}`
       :ids.length?`<div class="slots">${pos.map(([code],i)=>{const cur=slotOf(i); return `<label class="slot"><b>${code}</b><select data-slot="${i}" aria-label="Position ${code}">
         <option value="">– frei –</option>${ids.map(pById).sort((a,b)=>a.name.localeCompare(b.name,'de')).map(p=>`<option value="${p.id}" ${cur&&cur.id===p.id?'selected':''}>${p.nr?p.nr+' · ':''}${esc(p.name)}${starters.has(p.id)&&!(cur&&cur.id===p.id)?' (gesetzt)':''}</option>`).join('')}</select></label>`;}).join('')}</div>
@@ -2191,8 +2216,8 @@ document.addEventListener('pointerdown',ev=>{
   const mv=e=>{
     if(!st.moved&&Math.hypot(e.clientX-st.x0,e.clientY-st.y0)<6) return; st.moved=true;
     const r=pitch.getBoundingClientRect();
-    st.x=Math.max(4,Math.min(96,(e.clientX-r.left)/r.width*100)); st.y=Math.max(4,Math.min(96,(e.clientY-r.top)/r.height*100));
-    d.style.left=st.x+'%'; d.style.top=st.y+'%';
+    const g=snapTo(+pitch.dataset.grid||0,Math.max(4,Math.min(96,(e.clientX-r.left)/r.width*100)),Math.max(4,Math.min(96,(e.clientY-r.top)/r.height*100)));
+    st.x=g.x; st.y=g.y; d.style.left=st.x+'%'; d.style.top=st.y+'%';
     st.out=e.clientX<r.left-12||e.clientX>r.right+12||e.clientY<r.top-12||e.clientY>r.bottom+12; d.classList.toggle('out',st.out);
   };
   const up=()=>{
@@ -2200,7 +2225,9 @@ document.addEventListener('pointerdown',ev=>{
     const e=S.events.find(x=>x.id===ui.lineup); if(!e||!e.squad) return; const sq=e.squad; sq.free=sq.free||{};
     if(!st.moved){ ui.freeSel=ui.freeSel===st.id?null:st.id; render(); return; }
     if(st.out){ delete sq.free[st.id]; ui.freeSel=null; commit(); toast(`${pname(st.id)} auf der Bank`); return; }
-    sq.free[st.id]={x:Math.round(st.x*10)/10,y:Math.round(st.y*10)/10}; ui.freeSel=null; commit();
+    const to={x:st.x,y:st.y}, from=sq.free[st.id];
+    if(gridOf(sq)){ const other=Object.keys(sq.free).find(k=>k!==st.id&&samePos(sq.free[k],to)); if(other&&from) sq.free[other]={...from}; }
+    sq.free[st.id]=to; ui.freeSel=null; commit();
   };
   d.addEventListener('pointermove',mv); d.addEventListener('pointerup',up); d.addEventListener('pointercancel',up);
 });
@@ -2446,10 +2473,14 @@ document.addEventListener('change',ev=>{
   if(t.id==='shSelf'&&can('events')){const e=S.events.find(x=>x.id===ui.evDetail); if(e){e.shifts=e.shifts||{self:true,list:[]}; e.shifts.self=t.checked; commit(); toast(t.checked?'Spieler können sich selbst eintragen':'Nur das Orga-Team teilt ein');} return;}
   if(t.id==='lFormation'&&can('events')){const e=S.events.find(x=>x.id===ui.lineup); if(e){e.squad=e.squad||{ids:[],formation:'4-4-2',slots:{}}; const sq=e.squad, prev=sq.formation; sq.formation=t.value; ui.freeSel=null;
     if(t.value===FREE){ /* Start mit den Positionen des bisherigen Systems */
-      if(!sq.free||!Object.keys(sq.free).length){ sq.free={}; const P=FORMS[prev]||FORMS['4-4-2']; Object.entries(sq.slots||{}).forEach(([k,pid])=>{const c=P[+k]; if(c&&sq.ids.includes(pid)) sq.free[pid]={x:c[1],y:c[2]};}); }
+      if(!sq.free||!Object.keys(sq.free).length){ sq.free={}; const P=FORMS[prev]||FORMS['4-4-2']; /* Positionen derselben Reihe (z. B. Abwehrkette) auf eine Höhe bringen, damit sie im Raster nicht verrutschen */
+        const lineY=y=>{const near=P.filter(f=>Math.abs(f[2]-y)<=8); return near.reduce((a,f)=>a+f[2],0)/near.length;};
+        Object.entries(sq.slots||{}).forEach(([k,pid])=>{const c=P[+k]; if(c&&sq.ids.includes(pid)) sq.free[pid]={x:c[1],y:lineY(c[2])};}); }
+      if(sq.grid==null) sq.grid=5; snapAll(sq);
       toast('Freie Aufstellung: Spieler auf dem Feld ziehen');
     }else{ const n=FORMS[t.value].length; Object.keys(sq.slots||{}).forEach(k=>{if(+k>=n) delete sq.slots[k];}); }
     commit();} return;}
+  if(t.id==='lGrid'&&can('events')){const e=S.events.find(x=>x.id===ui.lineup); if(e&&e.squad){e.squad.grid=+t.value; snapAll(e.squad); ui.freeSel=null; commit(); toast(+t.value?`Raster: ${GRIDS[t.value]}`:'Ohne Raster – ganz frei');} return;}
   if(t.dataset.slot!==undefined&&can('events')){const e=S.events.find(x=>x.id===ui.lineup); if(e&&e.squad){const sl=e.squad.slots; Object.keys(sl).forEach(k=>{if(sl[k]===t.value) delete sl[k];}); if(t.value) sl[t.dataset.slot]=t.value; else delete sl[t.dataset.slot]; commit();} return;}
   if(t.id==='importFile'&&isFull()){const f=t.files&&t.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{try{parseImport(r.result); ui.importText=r.result; ui.confirmDel='import'; render();}catch(e){toast('Die Datei ist keine gültige Sicherung');}}; r.readAsText(f); return;}
   if(!isFull()) return;
