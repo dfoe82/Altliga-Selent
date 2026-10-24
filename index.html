@@ -9,9 +9,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Kasse">
+<meta name="apple-mobile-web-app-title" content="Mannschaft">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
-<title>Mannschaftskasse</title>
+<title>Mannschaft</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap">
@@ -461,7 +461,7 @@ table.grid{border-collapse:separate;border-spacing:0;font-size:13.5px;width:100%
 
 <header><div class="wrap">
   <img class="crest" id="crest" alt="Wappen" hidden>
-  <div class="htxt"><div class="eyebrow" id="season">Mannschaftskasse</div><h1 id="teamName">Unsere <em>Mannschaft</em></h1></div>
+  <div class="htxt"><div class="eyebrow" id="season">Mannschaft</div><h1 id="teamName">Unsere <em>Mannschaft</em></h1></div>
   <img class="logo2" id="logo2" alt="Logo" hidden>
   <div class="score" id="score"></div>
   <button class="adminbtn" id="adminBtn" data-act="adminBtn" aria-label="Admin-Ansicht"></button>
@@ -561,8 +561,16 @@ const ETYPE={game:'Spiel',training:'Training',event:'Event'};
 const RSVP=['Ja','Nein','Vielleicht'];
 const RSVPQ={game:'Bist du beim Spiel dabei?',training:'Bist du beim Training dabei?',event:'Bist du dabei?'};
 const MONEY=['drinks','team','misc'];
-const DEMO_ADMINS=[{uid:'demo-full',name:'Kassenwart',role:'full',areas:[],email:'kasse@example.org'},{uid:'demo-part',name:'Trainer',role:'part',areas:['events'],email:'trainer@example.org'}];
-const KEY='mannschaftskasse-demo', BKEY='mannschaftskasse-demo-sicherungen';
+/* Demo-Varianten (nur ohne Firebase): ?v=a alles, ?v=b ohne Geld-Themen, ?v=c nur Kassen. Die echte App hat immer alles. */
+const VARIANT='b'; /* Version „Mannschaft“: ohne Mannschaftskasse, Getränkekasse und Sonstiges */
+const FEAT={money:VARIANT!=='b',events:VARIANT!=='c',roster:VARIANT!=='c'};
+const areasOn=()=>Object.entries(AREAS).filter(([k])=>k==='events'?FEAT.events:FEAT.money);
+const DEMO_ADMINS=VARIANT==='b'
+  ?[{uid:'demo-full',name:'Teamleiter',role:'full',areas:[],email:'team@example.org'},{uid:'demo-part',name:'Trainer',role:'part',areas:['events'],email:'trainer@example.org'}]
+  :VARIANT==='c'
+  ?[{uid:'demo-full',name:'Kassenwart',role:'full',areas:[],email:'kasse@example.org'},{uid:'demo-part',name:'Getränkewart',role:'part',areas:['drinks'],email:'getraenke@example.org'}]
+  :[{uid:'demo-full',name:'Kassenwart',role:'full',areas:[],email:'kasse@example.org'},{uid:'demo-part',name:'Trainer',role:'part',areas:['events'],email:'trainer@example.org'}];
+const KEY='mannschaftskasse-demo'+(VARIANT==='a'?'':'-'+VARIANT), BKEY=KEY+'-sicherungen';
 const CODE_ABC='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const uid=()=>Math.random().toString(36).slice(2,9);
 const eur=n=>n.toLocaleString('de-DE',{style:'currency',currency:'EUR'});
@@ -629,7 +637,7 @@ function readImg(file,cb){
 
 /* ---------- Grunddaten ---------- */
 function emptyState(){
-  return {sample:false,appName:'Mannschaftskasse',teamName:'Unsere Mannschaft',showSeason:false,fee:10,rate:3,paypal:'',statsPublic:false,amountsPublic:false,publicView:false,birth:{},reports:{},
+  return {sample:false,appName:'Mannschaft',teamName:'Unsere Mannschaft',showSeason:false,fee:10,rate:3,paypal:'',statsPublic:false,amountsPublic:false,publicView:false,birth:{},reports:{},
     club:{c:[...PRESETS[0].c],use3:true,use4:true,crest:'',logo:''},order:['drinks','team','misc'],
     players:[],days:[],misc:[],paid:{team:{},drinks:{}},events:[],archive:[]};
 }
@@ -686,7 +694,7 @@ function sample(){
     {id:uid(),e:kohl.id,k:'event',a:'demo-full',an:'Kassenwart',t:'Busanteil bitte bis Ende des Monats überweisen.',ts:Date.now()-170e6}];
   const members=ids.filter((id,i)=>codes[id]&&i%4!==1).map((id,i)=>({p:id,code:codes[id],seen:Date.now()-(i%6)*86400000*(1+i%3)}));
   const out={
-    ...emptyState(), reports:{}, sample:true, sampleV:43,
+    ...emptyState(), reports:{}, sample:true, sampleV:44,
     players,
     days:[
       {date:prev2+'-12',att:pickN(8,26)},{date:prev2+'-26',att:pickN(9,29)},
@@ -720,6 +728,10 @@ function sample(){
   ids.forEach((id,i)=>{ if(i%3!==2) return;
     [prev2,prev,cur].forEach(k=>{out.paid.team[id+'|'+k]=true; out.paid.drinks[id+'|'+k]=true;});
     out.misc.forEach(e=>{if(e.persons.includes(id)&&!e.paid.includes(id)) e.paid.push(id);}); });
+  /* Beispieldaten je Demo-Variante */
+  if(!FEAT.money){ out.appName='Mannschafts-App'; out.days=[]; out.misc=[]; out.paid={team:{},drinks:{}}; }
+  if(!FEAT.events){ out.events=[]; out.archive=[]; out.reports={}; out.demoComments=[]; }
+  out.variant=VARIANT;
   return out;
 }
 
@@ -966,12 +978,12 @@ function commit(){autoBackup();S.sample=false;if(isFull()) updateAges();save();r
 
 /* ---------- Sicherungen ---------- */
 const MAXB=10, AUTO_GAP=30*60*1000;
-const slug=t=>String(t||'Mannschaftskasse').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').toLowerCase()||'mannschaftskasse';
+const slug=t=>String(t||'Mannschaft').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').toLowerCase()||'mannschaft';
 const stamp=(d=new Date())=>`${iso(d)}_${String(d.getHours()).padStart(2,'0')}-${String(d.getMinutes()).padStart(2,'0')}`;
 function loadBackups(){ if(AUTH.mode==='live') return LIVE.backups; try{return JSON.parse(ls.get(BKEY))||[]}catch(e){return []} }
 function stripImages(json){const o=JSON.parse(json); if(o.club){o.club.crest='';o.club.logo='';} delete o.demoCodes; delete o.demoMembers; delete o.demoLog; delete o.demoComments; return JSON.stringify(o);}
 function addBackup(json,label){
-  const b={ts:Date.now(),name:S.appName||'Mannschaftskasse',label,data:stripImages(json)};
+  const b={ts:Date.now(),name:S.appName||'Mannschaft',label,data:stripImages(json)};
   if(AUTH.mode==='live'){ if(!AUTH.admin) return; FB.setDoc(D('backups',String(b.ts)),{...b,by:AUTH.admin.name}).catch(e=>console.warn(e)); return; }
   const list=loadBackups(); list.push({id:uid(),...b});
   while(list.length>MAXB) list.shift();
@@ -1131,22 +1143,23 @@ function renderChrome(){
   applyTheme();
   const yr=yearMonths(NOW.getFullYear());
   const gated=AUTH.mode==='live'&&(!AUTH.ready||AUTH.gate);
-  document.getElementById('score').innerHTML=gated||!seeAllAmounts()?'':S.order.map(s=>`<div><b>${eur(totalOpen(s,yr))}</b><span>${SEC[s].short} offen</span></div>`).join('');
+  document.getElementById('score').innerHTML=gated||!seeAllAmounts()||!FEAT.money?'':S.order.map(s=>`<div><b>${eur(totalOpen(s,yr))}</b><span>${SEC[s].short} offen</span></div>`).join('');
   const words=(S.teamName||'Unsere Mannschaft').trim().split(/\s+/);
   document.getElementById('teamName').innerHTML=words.length>1?`${esc(words.slice(0,-1).join(' '))} <em>${esc(words[words.length-1])}</em>`:`<em>${esc(words[0])}</em>`;
   const y=NOW.getFullYear(), sy=NOW.getMonth()>=6?y:y-1;
-  document.getElementById('season').textContent=`${S.appName||'Mannschaftskasse'}${S.showSeason?` · Saison ${sy}/${String(sy+1).slice(2)}`:''}${AUTH.mode==='demo'?' · Demo':''}`;
-  document.title=S.appName||'Mannschaftskasse';
-  let am=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(am) am.content=(S.appName||'Kasse').slice(0,20);
+  document.getElementById('season').textContent=`${S.appName||'Mannschaft'}${S.showSeason?` · Saison ${sy}/${String(sy+1).slice(2)}`:''}${AUTH.mode==='demo'?' · Demo':''}`;
+  document.title=S.appName||'Mannschaft';
+  let am=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(am) am.content=(S.appName||'Mannschaft').slice(0,20);
   const ab=document.getElementById('adminBtn');
   ab.className='adminbtn'+(isAdmin()?' on':(me()?' half':''));
   ab.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${isAdmin()?ICON.unlock:ICON.lock}</svg>`;
   ab.setAttribute('aria-label',isAdmin()?'Zum Lesemodus wechseln':(me()?'Zur Admin-Ansicht wechseln':'Admin-Anmeldung'));
-  const tabs=gated?[]:isPublic()?['home','events']:(isFull()?['home','events','roster','settings']:['home','events','roster']);
+  const tabs=(gated?[]:isPublic()?['home','events']:(isFull()?['home','events','roster','settings']:['home','events','roster']))
+    .filter(k=>(k!=='events'||FEAT.events)&&(k!=='roster'||FEAT.roster));
   const cur=(ui.person||MONEY.includes(ui.tab))?'home':((ui.lineup||ui.evDetail)?'events':ui.tab);
   const lbl=k=>k==='settings'?'Optionen':k==='roster'?'Team':SEC[k].label;
   document.getElementById('tabs').innerHTML=tabs.map(k=>`<button role="tab" data-tab="${k}" aria-selected="${cur===k}">${lbl(k)}</button>`).join('');
-  document.getElementById('tabbar').innerHTML=tabs.map(k=>`<button data-tab="${k}" aria-selected="${cur===k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg><span>${lbl(k)}</span></button>`).join('');
+  document.getElementById('tabbar').innerHTML=(tabs.length>1?tabs:[]).map(k=>`<button data-tab="${k}" aria-selected="${cur===k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg><span>${lbl(k)}</span></button>`).join('');
 }
 
 function periodBar(){
@@ -1188,7 +1201,7 @@ function pickTags(){
 function picker(){
   const ld=(ui.tab==='drinks'&&!ui.lineup)?lastDay():null;
   const ps=pickOrder(), rank=new Map(ps.map((p,i)=>[p.id,i])), sel=ps.filter(p=>ui.sel.has(p.id)), rest=ps.filter(p=>!ui.sel.has(p.id)), tags=pickTags();
-  const ev=ui.shiftPick?S.events.find(e=>e.id===ui.evDetail&&isRsvp(e)):ui.lineup?S.events.find(e=>e.id===ui.lineup&&e.poll):(ui.tab==='drinks'?S.events.find(e=>e.date===ui.date&&e.poll):null);
+  const ev=ui.shiftPick?S.events.find(e=>e.id===ui.evDetail&&isRsvp(e)):ui.lineup?S.events.find(e=>e.id===ui.lineup&&e.poll):(ui.tab==='drinks'&&FEAT.events?S.events.find(e=>e.date===ui.date&&e.poll):null);
   return `<div class="pick-tools">
       <input type="search" id="pSearch" placeholder="Name suchen …" autocomplete="off" autocorrect="off" aria-label="Name suchen">
       <div class="row tight"><button class="chip" data-act="selall">Alle</button><button class="chip" data-act="selnone">Keine</button></div>
@@ -1266,6 +1279,7 @@ function mini(e){
     <span class="mt"><span class="ml">${lb}${sq?' · Aufstellung ›':''}</span><span class="mv">${esc(title)}</span><span class="ms">${bits.filter(Boolean).join(' · ')}</span></span></button>`;
 }
 function nextBlock(upcoming){
+  if(!FEAT.events) return '';
   const items=['game','training','event'].map(t=>upcoming.find(e=>e.type===t)).filter(Boolean);
   if(!items.length) return '';
   return `<div class="hd">Nächste Termine <span>antippen für Details</span></div><div class="minis" style="${secStyle('events')}">${items.map(mini).join('')}</div>`;
@@ -1281,7 +1295,7 @@ function mineCard(yr){
       <button class="btn ghost sm" data-act="person" data-id="${pid}">Details</button></div></div>`;
 }
 function myShifts(upcoming){
-  const pid=myPlayer(); if(!pid||isPublic()) return '';
+  const pid=myPlayer(); if(!pid||isPublic()||!FEAT.events) return '';
   const items=upcoming.flatMap(e=>shiftsOf(e).filter(s=>shiftWho(s).includes(pid)).sort(byFrom).map(s=>({e,s}))).slice(0,3);
   const open=!items.length&&upcoming.find(e=>e.date<=shiftDate(TODAY,45)&&e.shifts&&e.shifts.self&&shiftsOf(e).some(s=>s.need>shiftWho(s).length));
   if(open){const st=shiftStats(open); return `<button class="chip" data-act="shiftsOpen" data-v="${open.id}" style="justify-self:start">${esc(evTitle(open))}: noch ${st.need-st.got} Helfer gesucht ›</button>`;}
@@ -1293,6 +1307,13 @@ function myShifts(upcoming){
 function homeView(){
   const y=NOW.getFullYear(), yr=yearMonths(y), cm=[mk(y,NOW.getMonth())];
   const upcoming=S.events.filter(e=>e.date>=TODAY).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  if(!FEAT.money){ /* Variante ohne Geld-Themen: Termine im Mittelpunkt */
+    const shown=new Set(['game','training','event'].map(t=>(upcoming.find(e=>e.type===t)||{}).id));
+    const more=upcoming.filter(e=>!shown.has(e.id)).slice(0,6);
+    return `${nextBlock(upcoming)}${myShifts(upcoming)}
+      ${more.length?`<div class="hd">Danach <span>antippen für Details</span></div><div class="panel" style="${secStyle('events')}"><div style="display:grid;gap:6px">${more.map(e=>`<button class="p" data-act="evOpen" data-v="${e.id}" style="text-align:left"><span class="n">${esc(evTitle(e))}<div>${wd(e.date)}, ${fmtDate(e.date)}${e.time?' · '+e.time+' Uhr':''}</div></span><span class="v" style="font-size:12px;color:var(--muted)">${ETYPE[e.type]}</span></button>`).join('')}</div></div>`:''}
+      <button class="chip" data-act="goto" data-v="roster" style="justify-self:start">Mannschaft ansehen ›</button>`;
+  }
   const tiles=S.order.map(k=>{
     const o=totalOpen(k,yr), s=totalSoll(k,yr), pct=s?Math.round((s-o)/s*100):100;
     return `<button class="k" data-act="goto" data-v="${k}" style="--c:${secHex(k)}">
@@ -1305,9 +1326,9 @@ function homeView(){
   const shown=ui.allDebtors?debt:debt.slice(0,8);
   const ld=S.days.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
   if(!seeAllAmounts()){
-    return `${mineCard(yr)||'<div class="panel"><p class="hint">Die Beträge sind nur für den jeweiligen Spieler sichtbar. Öffne deinen persönlichen Link, um deinen Stand zu sehen.</p></div>'}
+    return `${mineCard(yr)||`<div class="panel"><p class="hint">Die Beträge sind nur für den jeweiligen Spieler sichtbar. ${AUTH.mode==='demo'?'Wähle oben unter „Ansicht als“ einen Spieler oder wechsle über das Schloss oben rechts in die Admin-Ansicht.':'Öffne deinen persönlichen Link, um deinen Stand zu sehen.'}</p></div>`}
       ${nextBlock(upcoming)}${myShifts(upcoming)}
-      <button class="chip" data-act="goto" data-v="roster" style="justify-self:start">Mannschaft ansehen ›</button>`;
+      ${FEAT.roster?'<button class="chip" data-act="goto" data-v="roster" style="justify-self:start">Mannschaft ansehen ›</button>':''}`;
   }
   if(!S.players.length&&isFull()) return `<div class="panel"><h2>Los geht's</h2><p class="hint">Trag unter Optionen die Spieler mit Spitznamen ein, wähle die Vereinsfarben und verschicke die Einladungen.</p><button class="btn" data-act="goto" data-v="settings" style="justify-self:start">Zu den Optionen</button></div>`;
   return `${mineCard(yr)}<div class="kassen">${tiles}</div>
@@ -1380,7 +1401,7 @@ function drinksPanel(){
   if(!(ui.form&&adm)) return `<div class="panel">
       <div class="row spread"><div class="grow"><h2>Getränketage · ${periodLabel()}</h2><p class="hint">${eur(S.rate)} pro Person und Tag.</p></div>
       ${adm?'<button class="btn" data-act="openForm">+ Tag erfassen</button>':''}</div>${list}</div>`;
-  const evOnDay=S.events.filter(e=>e.date===ui.date);
+  const evOnDay=FEAT.events?S.events.filter(e=>e.date===ui.date):[];
   return `<div class="panel form">
       <h2>${ui.editKey?'Getränketag bearbeiten':'Neuer Getränketag'}</h2>
       <div class="row tight" style="align-items:flex-end;flex-wrap:nowrap">
@@ -1608,7 +1629,7 @@ function evCard(e,cls,isNext){
   const nc=commentsOf(e.id).length;
   const foot=[e.result?`Ergebnis ${esc(e.result)}`:'',reportOf(e.id)?'Bericht':'',e.comments||nc?`💬 ${nc}`:''].filter(Boolean).join(' · ');
   const acts=adm||can('drinks')?`<div class="evact">${adm?`<div style="display:flex"><button class="edit" data-act="editEvent" data-v="${e.id}">Bearbeiten</button><button class="x" data-act="askDel" data-v="${key}" aria-label="Termin löschen">×</button></div>`:''}
-      ${can('drinks')&&e.date<=TODAY?`<button class="edit" data-act="evDrinks" data-v="${e.date}">Getränke erfassen</button>`:''}</div>`:'';
+      ${can('drinks')&&FEAT.money&&e.date<=TODAY?`<button class="edit" data-act="evDrinks" data-v="${e.date}">Getränke erfassen</button>`:''}</div>`:'';
   return `<div class="ev ${cls}"><div class="cal"><span>${wd(e.date)}</span><b>${+d}</b><span>${MONTHS[+m-1].slice(0,3)}</span></div>
     <div style="min-width:0"><div class="t">${esc(evTitle(e))}</div>
       <div class="s">${[e.time?e.time+' Uhr':'',esc(e.place)].filter(Boolean).join(' · ')}</div>
@@ -1880,7 +1901,7 @@ function backupPanel(){
       return `<div class="bk"><span class="lb">${esc(b.name||S.appName)} · ${fmtTs(b.ts)}<small>${esc(b.label)}${b.by?' · '+esc(b.by):''} · ${info}</small></span>
         <button class="btn ghost sm" data-act="askDel" data-v="${key}">Wiederherstellen</button></div>`;}).join('')}</div>`:'<p class="hint">Noch keine Sicherungspunkte. Der erste entsteht bei der nächsten Änderung.</p>'}
     <h3>Export &amp; Import</h3>
-    <p class="hint">Dateiname: <span class="code">${esc(slug(S.appName))}_${stamp()}.json</span>. Der Export enthält alle Kassendaten inklusive Wappen. Bewahre die Datei sicher auf, z. B. in iCloud Drive – sie enthält die Zahlungsstände.</p>
+    <p class="hint">Dateiname: <span class="code">${esc(slug(S.appName))}_${stamp()}.json</span>. Der Export enthält alle Daten der App inklusive Wappen. Bewahre die Datei sicher auf, z. B. in iCloud Drive – sie enthält die Zahlungsstände.</p>
     <div class="row tight">
       <button class="btn" data-act="exportFile">Als Datei speichern</button>
       <button class="btn ghost" data-act="exportCopy">Als Text kopieren</button>
@@ -1899,27 +1920,29 @@ function logPanel(){
 function visibilityPanel(){
   const link=appLink('');
   return `<div class="panel" style="${secStyle('team')}"><h2>Sichtbarkeit</h2>
-    <div class="vis"><b>Beträge</b>
+    ${FEAT.money?`    <div class="vis"><b>Beträge</b>
       <div class="seg wide" role="group" aria-label="Beträge"><button data-act="amountsVis" data-v="own" aria-pressed="${!S.amountsPublic}">Jeder nur seine eigenen</button><button data-act="amountsVis" data-v="all" aria-pressed="${!!S.amountsPublic}">Für alle sichtbar</button></div>
       <p class="hint">${S.amountsPublic?'Alle Spieler sehen die Kassen mit allen Beträgen.':'Spieler sehen nur ihren eigenen Stand. Die Beträge der anderen sind auch auf dem Server gesperrt. Admins sehen immer alles.'}</p></div>
-    <div class="vis"><b>Teilnahme-Auswertung</b>
+`:''}
+    ${FEAT.events?`    <div class="vis"><b>Teilnahme-Auswertung</b>
       <div class="seg wide" role="group" aria-label="Teilnahme"><button data-act="statsVis" data-v="admin" aria-pressed="${!S.statsPublic}">Nur Trainer &amp; Admins</button><button data-act="statsVis" data-v="all" aria-pressed="${!!S.statsPublic}">Alle Spieler</button></div></div>
     <div class="vis"><b>Öffentlicher Zugang</b>
       <div class="seg wide" role="group" aria-label="Öffentlicher Zugang"><button data-act="publicVis" data-v="off" aria-pressed="${!S.publicView}">Aus</button><button data-act="publicVis" data-v="on" aria-pressed="${!!S.publicView}">An</button></div>
-      <p class="hint">Wer die App ohne Code öffnet, sieht nur die Termine (Datum, Uhrzeit, Ort) und auf der Übersicht die nächsten Termine – bei Spiel und Training mit Umfragestand als Zahl. Keine Namen, keine Beträge, keine Notizen.</p>
+      <p class="hint">Wer die App ohne Code öffnet, sieht nur die Termine (Datum, Uhrzeit, Ort) und auf der Übersicht die nächsten Termine – bei Spiel und Training mit Umfragestand als Zahl. Keine Namen, ${FEAT.money?'keine Beträge, ':''}keine Notizen.</p>
       ${S.publicView?`<div class="row tight"><span class="code" style="overflow-wrap:anywhere">${esc(link)}</span><button class="btn ghost sm" data-act="copyPublic">Link kopieren</button></div>`:''}
       ${AUTH.mode==='demo'?'<button class="btn ghost sm" data-act="demoPublic" style="justify-self:start">Öffentliche Ansicht testen</button>':''}</div>
+`:''}
   </div>`;
 }
 function settings(){
   const c=S.club.c;
-  const colDefs=[['Hauptfarbe','Kopf, Leisten, Beiträge',null],['Akzentfarbe','Hervorhebungen, Getränke',null],['Drittfarbe','Sonstiges','use3'],['Viertfarbe','Termine','use4']];
+  const colDefs=[['Hauptfarbe',FEAT.money?'Kopf, Leisten, Beiträge':'Kopf, Leisten',null],['Akzentfarbe',FEAT.money?'Hervorhebungen, Getränke':'Hervorhebungen',null],['Drittfarbe',FEAT.money?'Sonstiges':'Team & Optionen','use3'],['Viertfarbe','Termine','use4']];
   return `${adminsPanel()}
   ${visibilityPanel()}
   ${playersPanel()}
   <div class="panel" style="${secStyle('team')}"><h2>Verein</h2>
     <div class="row">
-      <label class="f grow">Name der App<input type="text" id="sAppName" maxlength="30" value="${esc(S.appName)}" placeholder="Mannschaftskasse"></label>
+      <label class="f grow">Name der App<input type="text" id="sAppName" maxlength="30" value="${esc(S.appName)}" placeholder="Mannschaft"></label>
       <label class="f grow">Name der Mannschaft<input type="text" id="sTeam" value="${esc(S.teamName)}"></label>
     </div>
     <label class="check"><input type="checkbox" id="sSeason" ${S.showSeason?'checked':''}> Saison im Kopf anzeigen (z. B. „Saison ${(()=>{const y=NOW.getFullYear(),sy=NOW.getMonth()>=6?y:y-1;return sy+'/'+String(sy+1).slice(2);})()}“)</label>
@@ -1934,7 +1957,7 @@ function settings(){
     ${imgSetting('crest','Wappen','Erscheint im Kopf und als App-Symbol auf dem Home-Bildschirm. Am besten PNG mit transparentem Hintergrund.')}
     ${imgSetting('logo','Weiteres Logo','Optional, z. B. Sponsor oder Verband. Erscheint rechts im Kopf.')}
   </div>
-  <div class="panel" style="${secStyle('team')}"><h2>Kassen</h2>
+  ${FEAT.money?`  <div class="panel" style="${secStyle('team')}"><h2>Kassen</h2>
     <div class="row" style="flex-wrap:nowrap">
       <label class="f" style="flex:1">Monatsbeitrag (€)<input type="number" id="sFee" step="0.5" min="0" inputmode="decimal" value="${S.fee}"></label>
       <label class="f" style="flex:1">Getränke pro Tag (€)<input type="number" id="sRate" step="0.5" min="0" inputmode="decimal" value="${S.rate}"></label>
@@ -1944,12 +1967,13 @@ function settings(){
     <div style="display:grid;gap:6px">${S.order.map((k,i)=>`<div class="ord"><span class="pos2">${i+1}</span><span class="sw" style="background:${secHex(k)}"></span><span class="lb">${SEC[k].label}</span>
       <button class="icon" data-act="up" data-v="${i}" ${i?'':'disabled'} aria-label="${SEC[k].label} nach vorne">↑</button><button class="icon" data-act="down" data-v="${i}" ${i<S.order.length-1?'':'disabled'} aria-label="${SEC[k].label} nach hinten">↓</button></div>`).join('')}</div>
   </div>
-  ${archivePanel()}
+`:''}
+  ${FEAT.events?archivePanel():''}
   ${backupPanel()}
   ${logPanel()}
   <div class="panel" style="--sec:var(--due);--on-sec:#fff"><h2>Daten zurücksetzen</h2>
     ${S.sample?`<div class="sample">Aktuell sind Beispieldaten geladen.</div>`:''}
-    <p class="hint">Vorher wird automatisch ein Sicherungspunkt angelegt. Admins, Vereinsfarben, Wappen und Beträge bleiben erhalten.</p>
+    <p class="hint">Vorher wird automatisch ein Sicherungspunkt angelegt. Admins, Vereinsfarben, Wappen${FEAT.money?' und Beträge':''} bleiben erhalten.</p>
     <div class="row">${ui.confirmReset
       ?`<button class="btn danger" data-act="reset" data-v="empty">Ja, alles leeren</button>${AUTH.mode==='demo'?'<button class="btn ghost" data-act="reset" data-v="sample">Beispieldaten laden</button>':''}<button class="btn ghost" data-act="reset" data-v="cancel">Abbrechen</button>`
       :`<button class="btn soft-danger" data-act="reset" data-v="ask">Daten zurücksetzen …</button>`}</div>
@@ -1960,7 +1984,7 @@ function settings(){
 function rightsFields(role,areas){
   return `<div class="checks"><label class="check"><input type="radio" name="mRole" value="full" ${role!=='part'?'checked':''}> Alles (inkl. Optionen)</label>
     <label class="check"><input type="radio" name="mRole" value="part" ${role==='part'?'checked':''}> Einzelne Bereiche</label></div>
-    <div class="checks">${Object.entries(AREAS).map(([k,l])=>`<label class="check"><input type="checkbox" name="mArea" value="${k}" ${areas.includes(k)?'checked':''}> ${l}</label>`).join('')}</div>
+    <div class="checks">${areasOn().map(([k,l])=>`<label class="check"><input type="checkbox" name="mArea" value="${k}" ${areas.includes(k)?'checked':''}> ${l}</label>`).join('')}</div>
     <p class="hint">Die Bereiche gelten nur bei „Einzelne Bereiche“.</p>`;
 }
 function renderModal(){
@@ -2100,11 +2124,15 @@ function render(){
   if(MONEY.includes(ui.tab)&&!seeAllAmounts()) ui.tab='home';
   if(ui.person&&!seeAllAmounts()&&ui.person!==myPlayer()) ui.person=null;
   if(isPublic()){ui.person=null;ui.lineup=null;ui.evDetail=null;}
+  if(!FEAT.money&&(MONEY.includes(ui.tab)||ui.person)){ui.tab='home';ui.person=null;}
+  if(!FEAT.events&&(ui.tab==='events'||ui.lineup||ui.evDetail)){ui.tab='home';ui.lineup=null;ui.evDetail=null;}
+  if(!FEAT.roster&&ui.tab==='roster') ui.tab='home';
+  if(!FEAT.events&&isPublic()) ui.demoPublic=false;
   if(ui.form&&!can(ui.lineup||ui.evDetail?'events':ui.tab)) closeForm();
   const v=document.getElementById('view');
   if(AUTH.mode==='live'&&(!AUTH.ready||AUTH.gate)){ v.innerHTML=gateView(); renderChrome(); return; }
   if(isPublic()){ v.setAttribute('style',secStyle('events')); v.innerHTML=publicView(); renderChrome(); return; }
-  const note=AUTH.mode==='demo'?`<div class="demo">Demo-Modus: Beispieldaten nur auf diesem Gerät.${!me()?` <label class="voter" style="margin-top:6px">Ansicht als<select class="voterSel"><option value="">Besucher mit Code (kein Spieler)</option>${sorted().map(x=>`<option value="${x.id}" ${myPlayer()===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>`:''}</div>`:'';
+  const note=AUTH.mode==='demo'?`<div class="demo">Demo-Modus${VARIANT!=='a'?` · Variante ${VARIANT.toUpperCase()}`:''}: Beispieldaten nur auf diesem Gerät.${/[?&]v=/.test(location.search)?' <a href="index.html" style="color:inherit;font-weight:700">Variante wechseln</a>':''}${!me()?` <label class="voter" style="margin-top:6px">Ansicht als<select class="voterSel"><option value="">Besucher mit Code (kein Spieler)</option>${sorted().map(x=>`<option value="${x.id}" ${myPlayer()===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>`:''}</div>`:'';
   const bar=isAdmin()?`<div class="adminbar"><span>Admin-Ansicht · ${esc(me().name)}<small>${esc(rightsText(me()))}</small></span><span class="row tight"><button class="btn ghost sm" data-act="readMode">Lesemodus</button>${AUTH.mode==='live'?'<button class="btn ghost sm" data-act="signOut">Abmelden</button>':''}</span></div>`:'';
   v.setAttribute('style',secStyle(ui.person?'home':((ui.lineup||ui.evDetail)?'events':(['settings','roster'].includes(ui.tab)?'team':ui.tab))));
   let html;
@@ -2489,7 +2517,7 @@ document.addEventListener('change',ev=>{
   if(!isFull()) return;
   if(t.id==='sTeam'){S.teamName=t.value.trim();commit();}
   else if(t.id==='sSeason'){S.showSeason=t.checked;commit();}
-  else if(t.id==='sAppName'){S.appName=t.value.trim().slice(0,30)||'Mannschaftskasse';commit();}
+  else if(t.id==='sAppName'){S.appName=t.value.trim().slice(0,30)||'Mannschaft';commit();}
   else if(t.id==='sFee'){S.fee=Math.max(0,parseFloat(t.value)||0);commit();}
   else if(t.id==='sRate'){S.rate=Math.max(0,parseFloat(t.value)||0);commit();}
   else if(t.id==='sPaypal'){S.paypal=t.value.trim();commit();}
@@ -2507,7 +2535,7 @@ function copy(text,msg){
 }
 
 /* ---------- Fernsteuerung für die Präsentationsseite (nur Demo) ---------- */
-if(!LIVE_MODE) window.addEventListener('message',ev=>{
+if(false) window.addEventListener('message',ev=>{
   const d=ev.data; if(!d||d.mk!=='present') return;
   if(d.reset){ ls.set(KEY,null); ls.set(BKEY,null); S=sample(); normalize(); lastSaved=JSON.stringify(S); save(); }
   ui.modal=null; renderModal(); closeForm();
@@ -2541,9 +2569,10 @@ if(LIVE_MODE){
   render();
   initFirebase().catch(e=>{console.error(e); AUTH.ready=true; AUTH.gate='error'; AUTH.error='Die App konnte nicht geladen werden. Bitte Internetverbindung prüfen.'; render();});
 }else{
-  try{S=JSON.parse(ls.get(KEY))}catch(e){}
-  if(!S||!S.players||(S.sample&&S.sampleV!==43)) S=sample();
-  normalize(); lastSaved=JSON.stringify(S); render();
+  /* Echte Version: ohne Firebase-Daten gibt es keinen Demo-Modus, sondern einen Hinweis */
+  const tb=document.getElementById('tabbar'); if(tb) tb.hidden=true;
+  document.querySelectorAll('nav.top,#adminBtn,#score').forEach(el=>el.hidden=true);
+  document.getElementById('view').innerHTML='<div class="panel"><h2>Noch nicht eingerichtet</h2><p class="hint">In der Datei index.html sind noch keine Firebase-Daten eingetragen. Bitte Schritt 5 der Anleitung ausführen und die Datei erneut hochladen.</p></div>';
 }
 </script>
 

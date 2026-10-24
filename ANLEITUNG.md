@@ -1,4 +1,6 @@
-# Mannschaftskasse – Einrichtung
+# Mannschaft – Einrichtung
+
+Version **Mannschaft**: Termine, Umfragen, Kommentare, Berichte, Kader & Aufstellung, Einteilung, Teilnahme und Team-Liste – ohne Mannschaftskasse, Getränkekasse und sonstige Gelder.
 
 Diese Anleitung bringt die App auf GitHub Pages und verbindet sie mit Firebase, damit alle Spieler dieselben Daten sehen. Rechne mit etwa 30 bis 45 Minuten. Die Firebase-Konsole bedienst du am besten am PC oder Chromebook; auf dem iPhone geht es auch, ist aber fummelig.
 
@@ -11,26 +13,24 @@ Diese Anleitung bringt die App auf GitHub Pages und verbindet sie mit Firebase, 
 | `index.html` | Die App. Kommt in dein GitHub-Repository. |
 | `firestore.rules` | Die Sicherheitsregeln. Kommen in die Firebase-Konsole, nicht zu GitHub. |
 | `ANLEITUNG.md` | Diese Anleitung. |
-| `demo.html` | Demo mit 40 Beispielspielern, läuft ohne Firebase. Optional mit hochladen. |
-| `praesentation.html` | Präsentationsseite für Beamer: Demo im Handy-Rahmen mit 12 Szenen. Braucht `demo.html` im selben Ordner. |
 
-Solange in `index.html` keine Firebase-Daten eingetragen sind, läuft die App im **Demo-Modus** mit Beispieldaten nur auf dem jeweiligen Gerät. So kannst du sie vorab ausprobieren.
+Die Demo mit Beispieldaten und die Präsentationsseite liegen in einem eigenen Repository (z. B. `mannschaftskasse-demo`). Diese Version enthält keinen Demo-Modus: Solange in `index.html` keine Firebase-Daten eingetragen sind, zeigt die App nur den Hinweis „Noch nicht eingerichtet“.
 
 ---
 
 ## 1. App auf GitHub Pages stellen
 
-1. Auf github.com ein neues Repository anlegen, z. B. `kasse`. Es darf öffentlich sein, denn es enthält **keine** Spielerdaten.
+1. Auf github.com ein neues Repository anlegen, z. B. `mannschaft`. Es darf öffentlich sein, denn es enthält **keine** Spielerdaten.
 2. **Add file → Upload files** → `index.html` hochladen → **Commit changes**.
 3. **Settings → Pages** → bei „Branch“ `main` und `/ (root)` wählen → **Save**.
 4. Nach ein bis zwei Minuten ist die App erreichbar unter
-   `https://DEIN-GITHUB-NAME.github.io/kasse/`
+   `https://DEIN-GITHUB-NAME.github.io/mannschaft/`
    Diese Adresse brauchst du gleich noch.
 
 ## 2. Firebase-Projekt anlegen
 
 1. https://console.firebase.google.com öffnen und mit einem Google-Konto anmelden.
-2. **Projekt hinzufügen** → Name z. B. `mannschaftskasse` → Google Analytics **ausschalten** → Projekt erstellen.
+2. **Projekt hinzufügen** → Name z. B. `mannschaft` → Google Analytics **ausschalten** → Projekt erstellen.
 
 ## 3. Anmeldung einschalten
 
@@ -51,16 +51,16 @@ Solange in `index.html` keine Firebase-Daten eingetragen sind, läuft die App im
 ## 5. App mit Firebase verbinden
 
 1. Zahnrad oben links → **Projekteinstellungen** → unten bei „Meine Apps“ auf das Symbol **`</>`** (Web) tippen.
-2. App-Spitzname z. B. `kasse` → **Registrieren**. „Firebase Hosting“ **nicht** ankreuzen.
+2. App-Spitzname z. B. `mannschaft` → **Registrieren**. „Firebase Hosting“ **nicht** ankreuzen.
 3. Firebase zeigt einen Block `const firebaseConfig = { apiKey: "...", ... }`. Die Werte brauchst du.
 4. Auf GitHub `index.html` öffnen → Stift-Symbol (Bearbeiten) → nach `FIREBASE_CONFIG` suchen und die leeren Anführungszeichen mit deinen Werten füllen:
 
    ```js
    const FIREBASE_CONFIG = {
      apiKey: "AIza…",
-     authDomain: "mannschaftskasse-xxxx.firebaseapp.com",
-     projectId: "mannschaftskasse-xxxx",
-     storageBucket: "mannschaftskasse-xxxx.appspot.com",
+     authDomain: "mannschaft-xxxx.firebaseapp.com",
+     projectId: "mannschaft-xxxx",
+     storageBucket: "mannschaft-xxxx.appspot.com",
      messagingSenderId: "1234567890",
      appId: "1:1234567890:web:abc123"
    };
@@ -74,13 +74,12 @@ Solange in `index.html` keine Firebase-Daten eingetragen sind, läuft die App im
 **Mach diesen Schritt direkt nach Schritt 5.** Die Ersteinrichtung ist nur einmal möglich: Wer sich als Erstes einrichtet, wird Admin mit allen Rechten.
 
 1. App öffnen → **Admin-Anmeldung** (bzw. Schloss oben rechts) → **Konto erstellen** mit deiner E-Mail und einem Passwort (mindestens 8 Zeichen).
-2. Es erscheint „Ersteinrichtung“ → Namen eingeben, z. B. `Kassenwart` → **Als ersten Admin einrichten**.
+2. Es erscheint „Ersteinrichtung“ → Namen eingeben, z. B. `Teamleiter` → **Als ersten Admin einrichten**.
 3. Fertig – du bist in der Admin-Ansicht.
 
 ## 7. Verein und Spieler einrichten
 
 1. **Optionen → Verein:** Name der App, Mannschaftsname, Vereinsfarben, Wappen und optional ein weiteres Logo. Der App-Name erscheint im Kopf, im Browser-Tab, auf dem Home-Bildschirm, in Einladungen und in den Dateinamen der Sicherungen (z. B. `kasse-alte-herren_2026-10-22_14-35.json`).
-2. **Optionen → Kassen:** Monatsbeitrag, Betrag pro Getränketag, PayPal.me-Name.
 3. **Optionen → Spieler & Zugänge:** Spitznamen oder Kürzel eintragen (einer pro Zeile) → **Hinzufügen & Codes erzeugen**. Bitte **keine vollständigen Namen**.
 4. Optional Rückennummern ergänzen.
 
@@ -101,7 +100,7 @@ Der Status zeigt dir anschließend:
 Weitere Aktionen:
 
 - **Neuer Code:** z. B. wenn ein Link in falsche Hände geraten ist. Der alte Code ist sofort ungültig.
-- **Sperren:** z. B. wenn jemand die Mannschaft verlässt. Seine Zahlungen bleiben erhalten.
+- **Sperren:** z. B. wenn jemand die Mannschaft verlässt. Seine bisherigen Daten bleiben erhalten.
 
 **Tipp für die Spieler (iPhone):** Link in Safari öffnen → Teilen → **Zum Home-Bildschirm**. Dann erscheint die App mit dem Wappen als Symbol. Fragt die App dort noch einmal nach dem Code, einfach den Code aus der Nachricht eingeben – danach bleibt er gespeichert.
 
@@ -109,9 +108,8 @@ Weitere Aktionen:
 
 In **Optionen → Sichtbarkeit**:
 
-- **Beträge:** Standard ist „Jeder nur seine eigenen“. Spieler sehen dann nur ihren eigenen Stand, die Beträge der anderen sind auch auf dem Server gesperrt. Mit „Für alle sichtbar“ sehen alle Spieler die kompletten Kassen. Admins sehen immer alles.
 - **Teilnahme-Auswertung:** nur Trainer & Admins oder alle Spieler.
-- **Öffentlicher Zugang:** Wer die App **ohne Code** öffnet, sieht nur die Termine (Datum, Uhrzeit, Ort) und auf der Übersicht die nächsten Termine – bei Spiel und Training mit dem Umfragestand als Zahl. Keine Namen, keine Beträge, keine Notizen. Den Link ohne Code kannst du z. B. auf der Vereinsseite verlinken.
+- **Öffentlicher Zugang:** Wer die App **ohne Code** öffnet, sieht nur die Termine (Datum, Uhrzeit, Ort) und auf der Übersicht die nächsten Termine – bei Spiel und Training mit dem Umfragestand als Zahl. Keine Namen, keine Notizen. Den Link ohne Code kannst du z. B. auf der Vereinsseite verlinken.
 
 **Geburtsdaten** trägst du bei den Spielern ein. Das Datum selbst sehen nur Admins mit allen Rechten; alle anderen sehen im Bereich **Team** nur Rückennummer, Spitzname und Alter. Das Alter aktualisiert sich, sobald ein Admin mit allen Rechten die App öffnet.
 
@@ -126,7 +124,7 @@ In **Optionen → Sichtbarkeit**:
 ## 9. Weitere Admins (bis zu 4)
 
 1. **Optionen → Admins → Admin einladen:** Name, E-Mail und Rechte wählen:
-   - **Alles (inkl. Optionen)** – z. B. zweiter Kassenwart
+   - **Alles (inkl. Optionen)** – z. B. zweiter Teamleiter
    - **Einzelne Bereiche** – z. B. Trainer nur „Termine & Kader“
 2. Der eingeladenen Person den App-Link schicken (ohne Spielercode oder mit ihrem eigenen).
 3. Sie tippt auf das **Schloss → Konto erstellen** mit **genau dieser E-Mail**.
@@ -152,9 +150,9 @@ Ist ein Admin gleichzeitig Spieler, öffnet er zusätzlich seinen persönlichen 
 
 - Spitznamen oder Kürzel sind empfohlen (Datensparsamkeit). Vollständige Namen sind mit Einverständnis der Spieler möglich, dann aber den Zugang konsequent über Codes schützen.
 - Geburtsdaten sind nur für Admins mit allen Rechten lesbar; die Mannschaft sieht nur das Alter.
-- Kurz in der Mannschaft erklären, was gespeichert wird: Spitzname, Rückennummer, Geburtsdatum (optional), Zahlungsstatus, Getränketage, Umfrage-Antworten, Kommentare, Aufstellungen, Einteilungen.
+- Kurz in der Mannschaft erklären, was gespeichert wird: Spitzname, Rückennummer, Geburtsdatum (optional), Umfrage-Antworten, Kommentare, Aufstellungen, Einteilungen.
 - Die Daten liegen bei Google Firebase in Frankfurt (wenn so in Schritt 4 gewählt).
-- Wer die Mannschaft verlässt: Zugang sperren und – wenn keine Beträge mehr offen sind – den Spieler entfernen.
+- Wer die Mannschaft verlässt: Zugang sperren und den Spieler entfernen.
 
 ## 12. Nutzung im Browser oder auf dem Home-Bildschirm
 
@@ -170,7 +168,7 @@ Im Browser merkt sich das Gerät nur den Spielercode bzw. die Admin-Anmeldung. S
 
 | Problem | Lösung |
 |---|---|
-| App zeigt „Demo-Modus“ | In `index.html` sind noch keine Firebase-Daten eingetragen (Schritt 5) oder GitHub hat die neue Version noch nicht veröffentlicht. |
+| App zeigt „Noch nicht eingerichtet“ | In `index.html` sind noch keine Firebase-Daten eingetragen (Schritt 5) oder GitHub hat die neue Version noch nicht veröffentlicht. |
 | Anmeldung schlägt fehl: Domain nicht autorisiert | Schritt 3.3 prüfen: `DEIN-GITHUB-NAME.github.io` muss eingetragen sein. |
 | „Keine Berechtigung“ beim Speichern | Regeln aus `firestore.rules` vollständig veröffentlicht? Hat der Admin das Recht für diesen Bereich? |
 | Spieler: „Code ungültig oder gesperrt“ | In Optionen prüfen, ob der Spieler einen Code hat; ggf. **Neuer Code** und neu einladen. |
