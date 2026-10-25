@@ -229,6 +229,12 @@ textarea{min-height:84px;resize:vertical}
 .mini .mv{font-family:var(--display);font-weight:400;font-size:17px;line-height:1.15;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini .ms{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini .ms b{color:var(--ink);font-weight:700}
+.minirow{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-width:0}
+.minirow .mini{flex:1 1 auto;border:0;border-radius:0}
+.mnav{flex:none;width:40px;display:grid;grid-template-rows:1fr auto 1fr;border-left:1px solid var(--line)}
+.mnav button{border:0;background:none;font-size:20px;font-weight:700;line-height:1;color:var(--ink);padding:0;min-height:26px}
+.mnav button:disabled{color:var(--line)}
+.mnav span{font-size:10.5px;font-weight:700;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 
 /* Termine & Umfragen */
 .evlist{display:grid;gap:8px}
@@ -412,6 +418,10 @@ table.grid{border-collapse:separate;border-spacing:0;font-size:13.5px;width:100%
 .cmt .who{font-size:12.5px;font-weight:700;display:flex;justify-content:space-between;gap:8px;align-items:center}
 .cmt .who small{font-weight:500;color:var(--muted)}
 .cmt .tx{white-space:pre-wrap;overflow-wrap:anywhere}
+.cmt.rm{background:none;border:1px dashed var(--line)}
+.cmt.rm .tx{color:var(--muted);font-size:13.5px}
+.cmtdel{display:grid;gap:8px;border-top:1px dashed var(--line);margin-top:6px;padding-top:8px}
+.cmtdel textarea{min-height:54px}
 .cmtform{display:grid;gap:6px}
 .cmtform textarea{min-height:64px}
 .evfoot{grid-column:1/-1;display:flex;justify-content:flex-end;gap:6px;border-top:1px dashed var(--line);padding-top:6px;flex-wrap:wrap}
@@ -1119,22 +1129,37 @@ function pollBox(e,full){
       ${can('events')?(p.open?`<button class="edit" data-act="closePoll" data-v="${e.id}">Beenden &amp; speichern</button>`:`<button class="edit" data-act="reopenPoll" data-v="${e.id}">Wieder öffnen</button>`):''}</div>
     ${names}
     ${p.comments&&full?commentsBlock(e,'poll'):''}
-    ${p.comments&&!full?`<div class="pmeta"><button class="edit" data-act="evOpen" data-v="${e.id}">💬 ${commentsOf(e.id,'poll').length} Kommentare zur Umfrage ›</button></div>`:''}</div>`;
+    ${p.comments&&!full?`<div class="pmeta"><button class="edit" data-act="evOpen" data-v="${e.id}">💬 ${cmtCount(e.id,'poll')} Kommentare zur Umfrage ›</button></div>`:''}</div>`;
 }
 
 /* ---------- Kommentare ---------- */
 function commentsOf(eid,k){
   const all=AUTH.mode==='live'?LIVE.comments:(S.demoComments||[]);
-  return all.filter(c=>c.e===eid&&(!k||c.k===k)).sort((a,b)=>a.ts-b.ts);
+  return all.filter(c=>c.e===eid&&(!k||c.k===k)).sort((a,b)=>(a.o||a.ts)-(b.o||b.ts));
 }
+/* Anzahl echter Kommentare (ohne Hinweise „Kommentar entfernt“) */
+const cmtCount=(eid,k)=>commentsOf(eid,k).filter(c=>!c.rm).length;
 function myAuthor(){const p=myPlayer(); if(p) return {p}; const a=me(); return a?{a:a.uid,an:a.name}:null;}
 function commentsBlock(e,k){
   const list=commentsOf(e.id,k), au=myAuthor(), key='cmt-'+k+'-'+e.id;
   const own=c=>(c.p&&au&&au.p===c.p)||(c.a&&au&&au.a===c.a);
-  return `<div class="cmts"><h3>${k==='poll'?'Kommentare zur Umfrage':'Kommentare'} · ${list.length}</h3>
-    ${list.map(c=>`<div class="cmt"><div class="who"><span>${esc(c.p?pname(c.p):(c.an||'Admin'))}${c.a?' <span class="badge">Admin</span>':''}</span>
-      <span class="row tight"><small>${fmtTs(c.ts)}</small>${own(c)||can('events')?`<button class="x" data-act="cmtDel" data-v="${c.id}" aria-label="Kommentar löschen">×</button>`:''}</span></div>
-      <div class="tx">${esc(c.t)}</div></div>`).join('')}
+  const delBox=c=>{
+    if(ui.cmtDel!==c.id) return '';
+    if(c.rm) return `<div class="cmtdel"><div class="row tight">Hinweis entfernen? <button class="btn danger sm" data-act="cmtDelGo" data-v="${c.id}" data-n="0">Entfernen</button><button class="btn ghost sm" data-act="cmtDelNo">Abbrechen</button></div></div>`;
+    if(own(c)&&!can('events')) return `<div class="cmtdel"><div class="row tight">Kommentar löschen? <button class="btn danger sm" data-act="cmtDelGo" data-v="${c.id}" data-n="0">Löschen</button><button class="btn ghost sm" data-act="cmtDelNo">Abbrechen</button></div></div>`;
+    return `<div class="cmtdel">
+      <label class="check"><input type="checkbox" id="cdNote" ${own(c)?'':'checked'}> Hinweis „Kommentar entfernt“ stehen lassen</label>
+      <label class="f">Begründung (optional, für alle sichtbar)<textarea id="cdText" maxlength="300" placeholder="z. B. Bitte sachlich bleiben."></textarea></label>
+      <div class="row tight"><button class="btn danger sm" data-act="cmtDelGo" data-v="${c.id}" data-n="1">Entfernen</button><button class="btn ghost sm" data-act="cmtDelNo">Abbrechen</button></div></div>`;
+  };
+  const delBtn=c=>(own(c)&&!c.rm)||can('events')?`<button class="x" data-act="cmtDel" data-v="${c.id}" aria-label="${c.rm?'Hinweis entfernen':'Kommentar löschen'}">×</button>`:'';
+  return `<div class="cmts"><h3>${k==='poll'?'Kommentare zur Umfrage':'Kommentare'} · ${list.filter(c=>!c.rm).length}</h3>
+    ${list.map(c=>c.rm
+      ?`<div class="cmt rm"><div class="who"><span>Kommentar entfernt</span><span class="row tight"><small>${fmtTs(c.o||c.ts)}</small>${delBtn(c)}</span></div>
+        <div class="tx">Entfernt von ${esc(c.an||'Admin')}${c.t?`: ${esc(c.t)}`:'.'}</div>${delBox(c)}</div>`
+      :`<div class="cmt"><div class="who"><span>${esc(c.p?pname(c.p):(c.an||'Admin'))}${c.a?' <span class="badge">Admin</span>':''}</span>
+      <span class="row tight"><small>${fmtTs(c.ts)}</small>${delBtn(c)}</span></div>
+      <div class="tx">${esc(c.t)}</div>${delBox(c)}</div>`).join('')}
     ${au?`<div class="cmtform"><textarea id="${key}" maxlength="500" placeholder="Kommentar schreiben …"></textarea><button class="btn sm" data-act="cmtSend" data-v="${e.id}" data-k="${k}" style="justify-self:end">Senden</button></div>`
       :'<p class="hint">Zum Kommentieren deinen persönlichen Spieler-Link öffnen.</p>'}</div>`;
 }
@@ -1280,9 +1305,15 @@ function mini(e){
 }
 function nextBlock(upcoming){
   if(!FEAT.events) return '';
-  const items=['game','training','event'].map(t=>upcoming.find(e=>e.type===t)).filter(Boolean);
-  if(!items.length) return '';
-  return `<div class="hd">Nächste Termine <span>antippen für Details</span></div><div class="minis" style="${secStyle('events')}">${items.map(mini).join('')}</div>`;
+  /* je Art (Spiel, Training, Event) der nächste Termin; mit ‹ › durch die weiteren blättern */
+  const groups=['game','training','event'].map(t=>({t,l:upcoming.filter(e=>e.type===t)})).filter(g=>g.l.length);
+  if(!groups.length) return '';
+  ui.nx=ui.nx||{};
+  const tiles=groups.map(({t,l})=>{const i=Math.max(0,Math.min(ui.nx[t]||0,l.length-1)), lb={game:'Spiele',training:'Trainings',event:'Events'}[t];
+    return l.length<2?mini(l[i]):`<div class="minirow">${mini(l[i])}<div class="mnav" role="group" aria-label="${lb} blättern">
+      <button data-act="nx" data-v="${t}" data-d="-1" ${i?'':'disabled'} aria-label="Vorheriger Termin">‹</button><span>${i+1}/${l.length}</span>
+      <button data-act="nx" data-v="${t}" data-d="1" ${i<l.length-1?'':'disabled'} aria-label="Nächster Termin">›</button></div></div>`;}).join('');
+  return `<div class="hd">Nächste Termine <span>antippen für Details · ‹ › blättern</span></div><div class="minis" style="${secStyle('events')}">${tiles}</div>`;
 }
 function mineCard(yr){
   const pid=myPlayer(); if(!pid) return '';
@@ -1626,7 +1657,7 @@ function evCard(e,cls,isNext){
     <div style="min-width:0"><div class="t">${esc(evTitle(e))}</div><div class="s">${[e.time?e.time+' Uhr':'',esc(e.place)].filter(Boolean).join(' · ')}</div>
     <div class="tags">${isNext?'<span class="badge nx">Nächster</span>':''}<span class="badge ${e.type==='training'?'tr':''}">${typeBadge}</span>${reportOf(e.id)&&reportOf(e.id).result?`<span class="badge">${esc(reportOf(e.id).result)}</span>`:''}</div></div>
     ${reportOf(e.id)?`<details class="pubrep"><summary>${e.type==='game'?'Spielbericht':'Bericht'}</summary><div class="report">${esc(reportOf(e.id).text)}</div></details>`:''}</div>`;
-  const nc=commentsOf(e.id).length;
+  const nc=cmtCount(e.id);
   const foot=[e.result?`Ergebnis ${esc(e.result)}`:'',reportOf(e.id)?'Bericht':'',e.comments||nc?`💬 ${nc}`:''].filter(Boolean).join(' · ');
   const acts=adm||can('drinks')?`<div class="evact">${adm?`<div style="display:flex"><button class="edit" data-act="editEvent" data-v="${e.id}">Bearbeiten</button><button class="x" data-act="askDel" data-v="${key}" aria-label="Termin löschen">×</button></div>`:''}
       ${can('drinks')&&FEAT.money&&e.date<=TODAY?`<button class="edit" data-act="evDrinks" data-v="${e.date}">Getränke erfassen</button>`:''}</div>`:'';
@@ -2132,7 +2163,7 @@ function render(){
   const v=document.getElementById('view');
   if(AUTH.mode==='live'&&(!AUTH.ready||AUTH.gate)){ v.innerHTML=gateView(); renderChrome(); return; }
   if(isPublic()){ v.setAttribute('style',secStyle('events')); v.innerHTML=publicView(); renderChrome(); return; }
-  const note=AUTH.mode==='demo'?`<div class="demo">Demo-Modus${VARIANT!=='a'?` · Variante ${VARIANT.toUpperCase()}`:''}: Beispieldaten nur auf diesem Gerät.${/[?&]v=/.test(location.search)?' <a href="index.html" style="color:inherit;font-weight:700">Variante wechseln</a>':''}${!me()?` <label class="voter" style="margin-top:6px">Ansicht als<select class="voterSel"><option value="">Besucher mit Code (kein Spieler)</option>${sorted().map(x=>`<option value="${x.id}" ${myPlayer()===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>`:''}</div>`:'';
+  const note=AUTH.mode==='demo'?`<div class="demo">Demo-Modus${VARIANT!=='a'?` · Variante ${VARIANT.toUpperCase()}`:''}: Beispieldaten nur auf diesem Gerät.${/[?&]v=/.test(location.search)?' <a href="index.html" style="color:inherit;font-weight:700">Variante wechseln</a>':''}${!me()?` <label class="voter" style="margin-top:6px">Ansicht als<select class="voterSel"><option value="">Besucher</option>${sorted().map(x=>`<option value="${x.id}" ${myPlayer()===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>`:''}</div>`:'';
   const bar=isAdmin()?`<div class="adminbar"><span>Admin-Ansicht · ${esc(me().name)}<small>${esc(rightsText(me()))}</small></span><span class="row tight"><button class="btn ghost sm" data-act="readMode">Lesemodus</button>${AUTH.mode==='live'?'<button class="btn ghost sm" data-act="signOut">Abmelden</button>':''}</span></div>`:'';
   v.setAttribute('style',secStyle(ui.person?'home':((ui.lineup||ui.evDetail)?'events':(['settings','roster'].includes(ui.tab)?'team':ui.tab))));
   let html;
@@ -2168,9 +2199,27 @@ async function sendComment(eid,k){
     catch(e){console.warn(e); toast('Kommentar konnte nicht gesendet werden');}
   }else{ S.demoComments=S.demoComments||[]; S.demoComments.push({id:uid(),e:eid,k,t,ts:Date.now(),...au}); save(); render(); toast('Kommentar gesendet'); }
 }
-async function deleteComment(id){
-  if(AUTH.mode==='live'){ try{await FB.deleteDoc(D('comments',id)); toast('Kommentar gelöscht');}catch(e){toast('Keine Berechtigung');} }
-  else { S.demoComments=(S.demoComments||[]).filter(c=>c.id!==id); save(); render(); toast('Kommentar gelöscht'); }
+/* Löschen; Admins können optional einen Hinweis mit Begründung an derselben Stelle stehen lassen */
+async function deleteComment(id,withNote,reason){
+  const all=AUTH.mode==='live'?LIVE.comments:(S.demoComments||[]), c=all.find(x=>x.id===id); if(!c) return;
+  const a=me(), note=withNote&&!c.rm&&can('events')&&a;
+  const ph=note?{e:c.e,k:c.k,a:a.uid,an:a.name,t:(reason||'').trim().slice(0,300),rm:true,o:c.o||c.ts}:null;
+  const ev=S.events.find(x=>x.id===c.e), what=`Kommentar bei „${ev?evTitle(ev):'Termin'}“ entfernt${ph&&ph.t?' – '+ph.t:''}`;
+  ui.cmtDel=null;
+  if(AUTH.mode==='live'){
+    try{
+      if(ph){ const b=FB.writeBatch(FB.db); b.delete(D('comments',id)); b.set(FB.doc(FB.collection(FB.db,'comments')),{...ph,ts:FB.serverTimestamp()}); await b.commit(); }
+      else await FB.deleteDoc(D('comments',id));
+      if(a&&c.p!==myPlayer()&&c.a!==a.uid) logAction(what);
+      toast(c.rm?'Hinweis entfernt':'Kommentar gelöscht');
+    }catch(e){console.warn(e); toast('Keine Berechtigung');}
+    render();
+  }else{
+    S.demoComments=(S.demoComments||[]).filter(x=>x.id!==id);
+    if(ph) S.demoComments.push({id:uid(),...ph,ts:Date.now()});
+    if(a&&!(c.a===a.uid)) logAction(what);
+    save(); render(); toast(c.rm?'Hinweis entfernt':'Kommentar gelöscht');
+  }
 }
 function exportJson(){const o=JSON.parse(JSON.stringify(S)); delete o.demoCodes; delete o.demoMembers; delete o.demoLog; delete o.demoComments; return JSON.stringify({app:'mannschaftskasse',name:S.appName,exported:new Date().toISOString(),data:o},null,1);}
 function parseImport(txt){const o=JSON.parse(txt); const d=o&&o.data?o.data:o; if(!d||!Array.isArray(d.players)||!d.paid) throw new Error('format'); return d;}
@@ -2262,7 +2311,7 @@ document.addEventListener('pointerdown',ev=>{
 });
 
 /* ---------- Bedienung ---------- */
-const READER=new Set(['shiftsOpen','shiftJoin','shiftLeave','playersFold','evOpen','evBack','cmtSend','cmtDel','codeModal','demoPublicEnd','adminBtn','modalBg','modalClose','goto','person','back','pyPrev','pyNext','allDebtors','mode','view','onlyOpen','prev','next','copy','efilter','showPast','vote','pollNames','lineup','lineupBack','noDel','evView','statType','statAll','gateGo','reload','signOut','mStep','mResend','readMode']);
+const READER=new Set(['nx','cmtDelNo','cmtDelGo','shiftsOpen','shiftJoin','shiftLeave','playersFold','evOpen','evBack','cmtSend','cmtDel','codeModal','demoPublicEnd','adminBtn','modalBg','modalClose','goto','person','back','pyPrev','pyNext','allDebtors','mode','view','onlyOpen','prev','next','copy','efilter','showPast','vote','pollNames','lineup','lineupBack','noDel','evView','statType','statAll','gateGo','reload','signOut','mStep','mResend','readMode']);
 document.addEventListener('submit',ev=>{if(ev.target.id==='mForm'){ev.preventDefault();submitModal();}});
 document.addEventListener('click',async ev=>{
   const tab=ev.target.closest('[data-tab]'); if(tab){goTab(tab.dataset.tab);return;}
@@ -2307,7 +2356,10 @@ document.addEventListener('click',async ev=>{
   case 'evOpen': ui.evDetail=v; ui.lineup=null; ui.tab='events'; ui.reportEdit=false; closeForm(); render(); window.scrollTo(0,0); break;
   case 'evBack': ui.evDetail=null; ui.reportEdit=false; render(); break;
   case 'cmtSend': sendComment(v,b.dataset.k); break;
-  case 'cmtDel': deleteComment(v); break;
+  case 'cmtDel': ui.cmtDel=ui.cmtDel===v?null:v; render(); break;
+  case 'cmtDelNo': ui.cmtDel=null; render(); break;
+  case 'nx': {ui.nx=ui.nx||{}; ui.nx[v]=Math.max(0,(ui.nx[v]||0)+(+b.dataset.d)); render(); break;}
+  case 'cmtDelGo': {const n=document.getElementById('cdNote'), t=document.getElementById('cdText'); deleteComment(v,b.dataset.n==='1'&&!!(n&&n.checked),t?t.value:''); break;}
   case 'codeModal': ui.modal={kind:'code'}; renderModal(); break;
   case 'demoPublic': ui.prevAdminView=ui.adminView; ui.demoPublic=true; ui.adminView=false; ui.tab='home'; render(); window.scrollTo(0,0); break;
   case 'demoPublicEnd': ui.demoPublic=false; ui.adminView=!!ui.prevAdminView; ui.tab=ui.adminView&&isFull()?'settings':'home'; render(); break;
