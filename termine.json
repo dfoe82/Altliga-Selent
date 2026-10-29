@@ -163,16 +163,6 @@
    "end": "2027-01-24"
   },
   {
-   "id": "ivumestdey",
-   "date": "2027-01-21",
-   "type": "event",
-   "time": "16:00",
-   "title": "Altliga Dänemark-Tour",
-   "place": "",
-   "note": "",
-   "home": true
-  },
-  {
    "id": "t270126",
    "type": "training",
    "date": "2027-01-26",
@@ -634,6 +624,6 @@
    "venue": "out"
   }
  ],
- "updated": 1793286600919,
+ "updated": 1793286664392,
  "kal": true
 }
