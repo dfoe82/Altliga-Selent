@@ -135,7 +135,7 @@ nav.tabbar svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width
    GitHub-Schlüssel direkt ins Repository (termine.json + termine.ics fürs
    Kalender-Abo). Nach etwa einer Minute sehen es alle.
    ========================================================================= */
-const APP_VERSION='1.34';
+const APP_VERSION='1.35';
 /* Repository: wird aus der Adresse erkannt (NAME.github.io/REPO/). Nur ändern, wenn das nicht passt. */
 const REPO_OVERRIDE={owner:'',repo:'',branch:'main'};
 
@@ -273,7 +273,18 @@ function settingsView(){
       :`<p class="hint">Repository <span class="code">${esc(r?r.owner+'/'+r.repo:'?')}</span> · Datei <span class="code">termine.json</span>. Nach dem Speichern sehen alle die Änderung nach etwa einer Minute.</p>`}
     <div class="row"><button class="btn ghost sm" data-act="download">termine.json herunterladen</button><button class="btn ghost sm" data-act="icsAll">termine.ics herunterladen</button></div>
     <p class="hint">Die Datei enthält alle Termine. Später übernimmt die Version mit Firebase sie automatisch, wenn sie im selben Repository liegt.</p></div>
+  ${ADM.ok?histPanel():''}
   <p class="foot">Version ${APP_VERSION}</p>`;
+}
+function histPanel(){
+  const h=ui.hist, fmt=ts=>ts?new Date(ts).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+  return `<div class="panel"><h2>Frühere Stände</h2>
+    <p class="hint">Jedes Speichern wird bei GitHub aufbewahrt. Ist etwas verloren gegangen, holst du hier einen früheren Stand zurück – das ist dann wieder eine normale Änderung und lässt sich ebenso rückgängig machen.</p>
+    ${!h?'<button class="btn ghost sm" data-act="hist" style="justify-self:start">Frühere Stände anzeigen</button>'
+      :h.loading?'<p class="hint">Lädt …</p>':h.err?'<p class="hint">Konnte nicht geladen werden.</p>'
+      :`<div style="display:grid;gap:6px">${h.list.map((c,i)=>`<div class="row spread" style="border-bottom:1px solid var(--line);padding:6px 0"><span><b>${fmt(c.ts)}</b>${i===0?' · aktuell':''}<br><span class="hint">${esc(c.msg.split('\n')[0])}</span></span>
+        ${i===0?'':ui.confirm==='rs:'+c.sha?`<span class="row"><button class="btn danger sm" data-act="restore" data-v="${c.sha}">Zurückholen</button><button class="btn ghost sm" data-act="noDel">Abbrechen</button></span>`:`<button class="btn ghost sm" data-act="askRestore" data-v="${c.sha}">Zurückholen</button>`}</div>`).join('')}</div>`}
+  </div>`;
 }
 const ICON={home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',events:'<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>',settings:'<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
   lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',unlock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/>'};
@@ -388,6 +399,7 @@ function applyOp(d,op){
   if(op.k==='put'){ const i=d.events.findIndex(e=>e.id===op.e.id); if(i>=0) d.events[i]=op.e; else d.events.push(op.e); }
   else if(op.k==='del') d.events=d.events.filter(e=>e.id!==op.id);
   else if(op.k==='set') Object.assign(d,op.v);
+  else if(op.k==='all') Object.assign(d,JSON.parse(JSON.stringify(op.v)));
   return d;
 }
 function change(ops,msg){
@@ -433,7 +445,7 @@ async function commitAll(ops){
   next.events.forEach(e=>files.push({path:'kal/'+e.id+'.ics',content:icsText([e],next.appName)}));
   [...paths].filter(p=>/^kal\/[^/]+\.ics$/.test(p)&&!want.has(p)).forEach(p=>files.push({path:p,sha:null}));
   const tree=await ghJ('/git/trees',{method:'POST',body:{base_tree:com.tree.sha,tree:files.map(f=>({path:f.path,mode:'100644',type:'blob',...(f.sha===null?{sha:null}:{content:f.content})}))}});
-  const nc=await ghJ('/git/commits',{method:'POST',body:{message:ops.length?`Termine aktualisiert (${ops.length} Änderung${ops.length>1?'en':''})`:'Kalenderdateien angelegt',tree:tree.sha,parents:[head]}});
+  const nc=await ghJ('/git/commits',{method:'POST',body:{message:(ops.length?`Termine aktualisiert (${ops.length} Änderung${ops.length>1?'en':''})`:'Kalenderdateien angelegt')+` · ${next.events.length} Termine`,tree:tree.sha,parents:[head]}});
   await ghJ(`/git/refs/heads/${encodeURIComponent(r.branch)}`,{method:'PATCH',body:{sha:nc.sha,force:false}});
   return next;
 }
@@ -455,6 +467,24 @@ async function flush(force){
   ADM.saving=false; if(!ADM.queue.length) ls.set('at-queue',null); render();
   if(ADM.queue.length&&ADM.status.k!=='err') scheduleSave();
 }
+async function refreshFromApi(){
+  try{ const r=repo(), res=await gh(`/contents/termine.json?ref=${encodeURIComponent(r.branch)}&t=${Date.now()}`);
+    if(res.ok){ const j=await res.json(); D=normalize(JSON.parse(unb64(j.content))); }
+  }catch(e){ console.warn('refresh',e); }
+}
+/* Frühere Stände: jede Speicherung ist ein Commit – hier lässt sich jeder davon zurückholen */
+async function loadHistory(){
+  ui.hist={loading:true}; render();
+  try{ const r=repo(), l=await ghJ(`/commits?path=termine.json&sha=${encodeURIComponent(r.branch)}&per_page=30`);
+    ui.hist={list:(l||[]).map(c=>({sha:c.sha,ts:Date.parse((c.commit&&c.commit.committer&&c.commit.committer.date)||'')||0,msg:(c.commit&&c.commit.message)||''}))};
+  }catch(e){ ui.hist={err:true}; }
+  render();
+}
+async function restoreVersion(sha){
+  try{ const f=await ghJ(`/contents/termine.json?ref=${sha}`), old=normalize(JSON.parse(unb64(f.content)));
+    ui.confirm=null; change([{k:'all',v:{appName:old.appName,teamName:old.teamName,venues:old.venues,events:old.events}}],`Stand mit ${old.events.length} Terminen wiederhergestellt`); ui.hist=null;
+  }catch(e){ toast('Dieser Stand konnte nicht geladen werden'); }
+}
 async function checkToken(tok,silent){
   const r=repo(); if(!r) return false;
   ADM.token=tok;
@@ -464,6 +494,7 @@ async function checkToken(tok,silent){
     const j=await res.json();
     if(!(j.permissions&&j.permissions.push)) throw Object.assign(new Error('perm'),{status:403});
     ADM.ok=true; ADM.status=null;
+    await refreshFromApi();
     try{ const q=JSON.parse(ls.get('at-queue')||'[]'); if(q.length){ ADM.queue.push(...q); q.forEach(op=>applyOp(D,op)); scheduleSave(); } }catch(e){}
     if(!ADM.queue.length&&!D.kal) setTimeout(()=>flush(true),300);
     render(); return true;
@@ -536,6 +567,9 @@ document.addEventListener('click',async ev=>{
       ADM.ok=false; ADM.local=false; ADM.token=''; ADM.status=null; ADM.queue=[]; ls.set('at-token',null); ls.set('at-local',null); ls.set('at-localdata',null); ls.set('at-queue',null);
       ui.tab=ui.tab==='settings'?'home':ui.tab; toast('Abgemeldet'); load(); break;
     case 'retry': flush(); break;
+    case 'hist': loadHistory(); break;
+    case 'askRestore': ui.confirm='rs:'+v; render(); break;
+    case 'restore': restoreVersion(v); break;
     case 'new': ui.form=blank(); ui.form.place=venueName('out'); ui.modal='form'; renderModal(); break;
     case 'edit': { const e=D.events.find(x=>x.id===v); if(!e) return; ui.form={...blank(),...e,home:e.home!==false}; ui.modal='form'; renderModal(); break; }
     case 'fType': { const f=ui.form; f.type=v; if(v==='training'){ if(!f.time) f.time='19:00'; if(!f.place) f.place=venueName(f.venue||'out'); } else if(venueKeys().some(k=>venueName(k)===f.place)) f.place=''; renderModal(); break; }
