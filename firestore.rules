@@ -1,0 +1,402 @@
+rules_version = '2';
+
+// Sicherheitsregeln für die Mannschaftskasse
+// - Lesen: nur mit gültigem Spielercode oder als Admin
+// - Schreiben: nur Admins, je nach Recht (Alles oder einzelne Bereiche: jede Kasse, Termine, Spieler & Zugänge, Einnahmen & Ausgaben)
+// - Umfragen: jeder Spieler nur seine eigene Stimme, nur solange die Umfrage offen ist
+// - Beträge: standardmäßig sieht jeder Spieler nur seinen eigenen Saldo
+// - Öffentlicher Zugang (optional): nur Termine ohne Namen
+// - Datenschutzhinweis (team/privacy): für jeden lesbar, auch vor der Anmeldung
+// - Berichte: sichtbar für alle, nur Mannschaft oder nur Admins
+// - Einteilung: Spieler tragen sich nur selbst ein, wenn das beim Termin erlaubt ist
+// - Push: jedes Gerät nur seinen eigenen Eintrag
+// - Pinnwand: Admins und – wenn erlaubt – Spieler schreiben; 👍 und Kommentare nur für sich selbst
+// - Aktuelles (nur Admins, cat = 'akt'): Mitteilungen; „Wichtig“ = roter Banner; Kommentare nur, wenn erlaubt;
+//   jeder bestätigt „Gelesen“ nur für sich selbst
+// - Chat (optional): jeder schreibt nur unter eigenem Namen; Admin-Chat nur für Admins
+// - Umfragen der Mannschaft: Spieler starten eigene Umfragen und stimmen nur für sich selbst ab
+// - Einnahmen & Ausgaben: nur Admins mit diesem Recht; gemeldete Zahlungen: Spieler nur eigene
+// - Strafenkatalog (team/fines): für alle lesbar, pflegen nur Admins mit Recht „Sonstiges“
+// - Kalender-Abo: der geheime Link steht in team/main (nur für die Mannschaft lesbar)
+// Diese Regeln in der Firebase-Konsole unter Firestore Database → Regeln einfügen und veröffentlichen.
+
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    // ---- Admins ----
+    function isAdmin() { return signedIn() && exists(/databases/$(db)/documents/admins/$(request.auth.uid)); }
+    function adminDoc() { return get(/databases/$(db)/documents/admins/$(request.auth.uid)).data; }
+    function isFull() { return isAdmin() && adminDoc().role == 'full'; }
+    function canArea(a) { return isAdmin() && (adminDoc().role == 'full' || a in adminDoc().areas); }
+
+    // ---- Spieler mit Code ----
+    function memberDoc() { return get(/databases/$(db)/documents/members/$(request.auth.uid)).data; }
+    function isMember() {
+      return signedIn()
+        && exists(/databases/$(db)/documents/members/$(request.auth.uid))
+        && exists(/databases/$(db)/documents/codes/$(memberDoc().code))
+        && get(/databases/$(db)/documents/codes/$(memberDoc().code)).data.p == memberDoc().p;
+    }
+    function canRead() { return isAdmin() || isMember(); }
+    // Spieler: mit eigenem Code – oder Admin, dem ein Spieler fest zugeordnet ist
+    function isPlayer() { return isMember() || (isAdmin() && adminDoc().get('p', '') != ''); }
+    function isMe(pid) { return pid is string && pid != '' && ((isMember() && memberDoc().p == pid) || (isAdmin() && adminDoc().get('p', '') == pid)); }
+
+    // ---- Schalter aus den Einstellungen ----
+    function mainDoc() { return get(/databases/$(db)/documents/team/main).data; }
+    function amountsOn() { return exists(/databases/$(db)/documents/team/main) && mainDoc().get('amountsPublic', false) == true; }
+    function publicOn() { return exists(/databases/$(db)/documents/team/public) && get(/databases/$(db)/documents/team/public).data.get('on', false) == true; }
+
+    // ---- Daten der Mannschaft (wenige große Dokumente) ----
+    // drinks/fees/misc enthalten die Beträge aller Spieler: nur Admins mit Recht auf genau diese Kasse,
+    // oder alle Spieler wenn freigegeben.
+    // private enthält die Geburtsdaten: nur Admins mit dem Recht „Spieler & Zugänge“ (players).
+    // public enthält nur die öffentlichen Termine: lesbar für jeden, wenn der öffentliche Zugang an ist.
+    // Optionen einzeln freigebbar: welche Felder in team/main ein Admin mit „Einzelne Bereiche“ ändern darf
+    function mainKeys() {
+      return (canArea('o_club') ? ['appName', 'teamName', 'club', 'showSeason', 'statPeriod'] : [])
+        .concat(canArea('o_money') ? ['fee', 'rate', 'paypal', 'order', 'finesOn', 'financeOn', 'payreqOn'] : [])
+        .concat(canArea('o_vis') ? ['amountsPublic', 'publicView', 'chatOn', 'boardOpen', 'cmtAll'] : [])
+        .concat(canArea('o_notify') ? ['calOn', 'calToken', 'remRsvp', 'remDebt', 'remBday'] : [])
+        .concat(canArea('o_privacy') ? ['privacy'] : []);
+    }
+    // Überschreib-Schutz: jede Änderung muss die Versionsnummer genau um 1 erhöhen.
+    // Wer mit einem veralteten Stand speichert, wird abgewiesen – die App führt dann zusammen.
+    function revOk() {
+      return request.resource.data.get('rev', 0) == (resource == null ? 0 : resource.data.get('rev', 0)) + 1;
+    }
+    match /team/{part} {
+      allow read: if (part == 'drinks' && (canArea('drinks') || (isPlayer() && amountsOn())))
+                  || (part == 'fees' && (canArea('team') || (isPlayer() && amountsOn())))
+                  || (part == 'misc' && (canArea('misc') || (isPlayer() && amountsOn())))
+                  || (part == 'finance' && canArea('finance'))
+                  || (part == 'private' && canArea('players'))
+                  || (part == 'public' && (resource.data.get('on', false) == true || canRead()))
+                  || part == 'privacy'
+                  || (!(part in ['drinks', 'fees', 'misc', 'finance', 'private', 'public', 'privacy']) && canRead());
+      allow write: if (part in ['public', 'privacy'] || revOk()) && (
+                      (part == 'main' && (isFull() || (isAdmin() && resource != null
+                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(mainKeys().concat(['rev'])))))
+                   || (part in ['players', 'private'] && canArea('players'))
+                   || (part == 'drinks' && canArea('drinks'))
+                   || (part == 'fees' && canArea('team'))
+                   || (part == 'misc' && canArea('misc'))
+                   || (part == 'fines' && canArea('misc'))
+                   || (part == 'finance' && canArea('finance'))
+                   || (part == 'privacy' && isAdmin())
+                   || (part in ['events', 'archive'] && canArea('events'))
+                   || (part == 'public' && isAdmin()
+                       && request.resource.data.get('on', false) == getAfter(/databases/$(db)/documents/team/main).data.get('publicView', false)));
+    }
+
+    // ---- Persönlicher Saldo je Spieler (wird von Admins mit allen drei Kassen aktuell gehalten) ----
+    function allMoney() { return canArea('drinks') && canArea('team') && canArea('misc'); }
+    match /balances/{pid} {
+      allow read: if allMoney() || isMe(pid) || (isPlayer() && amountsOn());
+      allow write: if allMoney();
+    }
+
+    // ---- Ersteinrichtung: der erste angemeldete Nutzer wird einmalig Admin mit allen Rechten ----
+    // Kennung der Regel-Version (die App prüft damit, ob die Regeln aktuell sind)
+    match /meta/rules127 {
+      allow get: if signedIn();
+    }
+    match /meta/setup {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && !exists(/databases/$(db)/documents/meta/setup)
+        && request.resource.data.owner == request.auth.uid
+        && existsAfter(/databases/$(db)/documents/admins/$(request.auth.uid));
+      allow update, delete: if false;
+    }
+
+    match /admins/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if
+        // Ersteinrichtung (zusammen mit meta/setup in einem Schritt)
+        (signedIn() && request.auth.uid == uid
+          && !exists(/databases/$(db)/documents/meta/setup)
+          && getAfter(/databases/$(db)/documents/meta/setup).data.owner == uid
+          && request.resource.data.role == 'full')
+        // Einladung annehmen: bestätigte E-Mail, Rechte genau wie in der Einladung
+        || (signedIn() && request.auth.uid == uid
+          && request.auth.token.email_verified == true
+          && exists(/databases/$(db)/documents/invites/$(request.auth.token.email))
+          && request.resource.data.keys().hasOnly(['name', 'role', 'areas', 'email', 'p'])
+          && request.resource.data.get('p', '') == get(/databases/$(db)/documents/invites/$(request.auth.token.email)).data.get('p', '')
+          && request.resource.data.name == get(/databases/$(db)/documents/invites/$(request.auth.token.email)).data.name
+          && request.resource.data.role == get(/databases/$(db)/documents/invites/$(request.auth.token.email)).data.role
+          && request.resource.data.areas == get(/databases/$(db)/documents/invites/$(request.auth.token.email)).data.areas)
+        || isFull();
+      allow update, delete: if isFull();
+    }
+
+    match /invites/{email} {
+      allow read: if isFull() || (signedIn() && request.auth.token.email == email);
+      allow create, update: if isFull();
+      allow delete: if isFull()
+        || (signedIn() && request.auth.token.email == email && request.auth.token.email_verified == true);
+    }
+
+    // ---- Spielercodes: nur abrufbar, wenn man den Code kennt; auflisten nur für Admins mit dem Recht „Spieler & Zugänge“ ----
+    match /codes/{code} {
+      allow get: if signedIn();
+      allow list: if canArea('players');
+      allow create, update, delete: if canArea('players');
+    }
+
+    // ---- Geräte, die einen Code eingelöst haben ----
+    match /members/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['p', 'code', 'since', 'seen'])
+        && request.resource.data.code is string
+        && exists(/databases/$(db)/documents/codes/$(request.resource.data.code))
+        && get(/databases/$(db)/documents/codes/$(request.resource.data.code)).data.p == request.resource.data.p;
+      allow delete: if canArea('players') || (signedIn() && request.auth.uid == uid);
+    }
+
+    // ---- Umfrage-Stimmen: Dokument-ID = <Termin-ID>_<Spieler-ID> ----
+    match /votes/{vid} {
+      allow read: if canRead() || publicOn();
+      allow create, update: if isPlayer()
+        && request.resource.data.keys().hasOnly(['e', 'p', 'i'])
+        && isMe(request.resource.data.p)
+        && vid == request.resource.data.e + '_' + request.resource.data.p
+        && request.resource.data.i is int
+        && request.resource.data.i >= 0 && request.resource.data.i < 6
+        && get(/databases/$(db)/documents/team/events).data.map[request.resource.data.e].poll.open == true;
+      allow delete: if canArea('events')
+        || (isMe(resource.data.p)
+            && get(/databases/$(db)/documents/team/events).data.map[resource.data.e].poll.open == true);
+    }
+
+    // ---- Kommentare zu Terminen und Umfragen ----
+    function evOf(e) { return get(/databases/$(db)/documents/team/events).data.map[e]; }
+    function commentsOn(e, k) {
+      return (k == 'news' && exists(/databases/$(db)/documents/news/$(e))
+              && (get(/databases/$(db)/documents/news/$(e)).data.get('cat', '') != 'akt' || get(/databases/$(db)/documents/news/$(e)).data.get('cmt', false) == true))
+          || (k == 'event' && (mainDoc().get('cmtAll', true) == true || evOf(e).get('comments', false) == true))
+          || (k == 'poll' && evOf(e).get('poll', {}).get('comments', false) == true);
+    }
+    match /comments/{id} {
+      allow read: if canRead();
+      // rm = Hinweis „Kommentar entfernt“ (nur Admins mit Recht auf Termine), o = Zeitpunkt des entfernten Kommentars
+      allow create: if request.resource.data.keys().hasOnly(['e', 'k', 'p', 'a', 'an', 't', 'ts', 'rm', 'o'])
+        && request.resource.data.t is string
+        && request.resource.data.t.size() <= 500
+        && (request.resource.data.t.size() > 0 || request.resource.data.get('rm', false) == true)
+        && (!('rm' in request.resource.data) || (request.resource.data.rm == true && (canArea('events') || (isAdmin() && request.resource.data.k == 'news'))))
+        && (!('o' in request.resource.data) || request.resource.data.o is number)
+        && request.resource.data.ts == request.time
+        && commentsOn(request.resource.data.e, request.resource.data.k)
+        && ((isMe(request.resource.data.get('p', '')) && !('a' in request.resource.data))
+            || (isAdmin() && request.resource.data.get('a', '') == request.auth.uid && !('p' in request.resource.data)));
+      allow update: if false;
+      allow delete: if canArea('events')
+        || (isAdmin() && resource.data.k == 'news')
+        || (isMe(resource.data.get('p', '')))
+        || (isAdmin() && resource.data.get('a', '') == request.auth.uid);
+    }
+
+    // ---- Einteilung (Aufbau, Bierstand …): Spieler tragen nur sich selbst ein, nur wenn erlaubt ----
+    // Dokument-ID = <Termin-ID>_<Aufgaben-ID>_<Spieler-ID>
+    function selfShifts(e) { return evOf(e).get('shifts', {}).get('self', false) == true; }
+    match /signups/{sid} {
+      allow read: if canRead();
+      allow create: if isPlayer()
+        && request.resource.data.keys().hasOnly(['e', 's', 'p'])
+        && isMe(request.resource.data.p)
+        && request.resource.data.s is string && request.resource.data.s.size() <= 20
+        && sid == request.resource.data.e + '_' + request.resource.data.s + '_' + request.resource.data.p
+        && selfShifts(request.resource.data.e);
+      allow update: if false;
+      allow delete: if canArea('events')
+        || (isMe(resource.data.p) && selfShifts(resource.data.e));
+    }
+
+    // ---- Berichte zu Terminen: Sichtbarkeit 'all' (auch öffentlich), 'team' (Mannschaft), 'admin' (nur Admins) ----
+    match /reports/{eid} {
+      allow read: if (resource.data.vis == 'all' && (publicOn() || canRead()))
+                  || (resource.data.vis == 'team' && canRead())
+                  || isAdmin();
+      allow create, update: if canArea('events')
+        && request.resource.data.keys().hasOnly(['text', 'by', 'ts', 'vis', 'result'])
+        && request.resource.data.vis in ['all', 'team', 'admin']
+        && request.resource.data.text is string && request.resource.data.text.size() <= 5000;
+      allow delete: if canArea('events');
+    }
+
+    // ---- Push-Nachrichten: jedes Gerät verwaltet nur seinen eigenen Eintrag; verschickt wird über die Cloud Functions ----
+    match /push/{uid} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['token', 'p', 'a', 'prefs', 'url', 'ts', 'ua'])
+        && request.resource.data.token is string && request.resource.data.token.size() < 600
+        && (!('p' in request.resource.data) || (isMe(request.resource.data.p)))
+        && (!('a' in request.resource.data) || (isAdmin() && request.resource.data.a == request.auth.uid))
+        && ('p' in request.resource.data || 'a' in request.resource.data);
+    }
+
+    // ---- Gemeldete Zahlungen: Spieler melden eine eigene Zahlung, Admins mit Kassen-Recht verrechnen sie ----
+    function moneyAdmin() { return canArea('drinks') || canArea('team') || canArea('misc') || canArea('finance'); }
+    match /payreq/{id} {
+      allow read: if moneyAdmin() || (isMe(resource.data.p));
+      allow create: if isPlayer()
+        && mainDoc().get('payreqOn', true) == true
+        && request.resource.data.keys().hasOnly(['p', 'amount', 'method', 'note', 'ts', 'status'])
+        && isMe(request.resource.data.p)
+        && request.resource.data.amount is number && request.resource.data.amount > 0 && request.resource.data.amount < 10000
+        && request.resource.data.method in ['paypal', 'bank', 'cash', 'other']
+        && request.resource.data.note is string && request.resource.data.note.size() <= 200
+        && request.resource.data.status == 'open'
+        && request.resource.data.ts == request.time;
+      allow update: if moneyAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'by', 'items', 'done'])
+        && request.resource.data.status in ['done', 'rejected', 'open'];
+      allow delete: if moneyAdmin() || (isMe(resource.data.p) && resource.data.status == 'open');
+    }
+
+    // ---- Umfragen der Mannschaft (ohne Termin): Spieler und Admins können sie starten ----
+    match /polls/{id} {
+      allow read: if canRead();
+      allow create: if request.resource.data.q is string
+        && request.resource.data.q.size() > 0 && request.resource.data.q.size() <= 200
+        && request.resource.data.opts is list
+        && request.resource.data.opts.size() >= 2 && request.resource.data.opts.size() <= 6
+        && request.resource.data.open == true
+        && request.resource.data.ts == request.time
+        && ((isMe(request.resource.data.get('p', '')) && request.resource.data.keys().hasOnly(['q', 'opts', 'open', 'ts', 'p']))
+            || (isAdmin() && request.resource.data.keys().hasOnly(['q', 'opts', 'open', 'ts', 'a', 'an']) && request.resource.data.a == request.auth.uid));
+      // beenden / wieder öffnen: wer sie gestartet hat, oder Admins mit Recht auf Termine
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['open'])
+        && (canArea('events')
+            || (isMe(resource.data.get('p', '')))
+            || (isAdmin() && resource.data.get('a', '') == request.auth.uid));
+      allow delete: if canArea('events')
+        || (isMe(resource.data.get('p', '')))
+        || (isAdmin() && resource.data.get('a', '') == request.auth.uid);
+    }
+    // Stimmen dazu: Dokument-ID = <Umfrage-ID>_<Spieler-ID>, nur die eigene, nur solange offen
+    match /pvotes/{vid} {
+      allow read: if canRead();
+      allow create, update: if isPlayer()
+        && request.resource.data.keys().hasOnly(['q', 'p', 'i'])
+        && isMe(request.resource.data.p)
+        && vid == request.resource.data.q + '_' + request.resource.data.p
+        && request.resource.data.i is int && request.resource.data.i >= 0 && request.resource.data.i < 6
+        && get(/databases/$(db)/documents/polls/$(request.resource.data.q)).data.open == true;
+      allow delete: if canArea('events')
+        || (isMe(resource.data.p)
+            && get(/databases/$(db)/documents/polls/$(resource.data.q)).data.open == true);
+    }
+
+    // ---- Pinnwand: Admins und (wenn erlaubt) Spieler schreiben; Admins heften an und löschen alles ----
+    function boardOpen() { return mainDoc().get('boardOpen', true) == true; }
+    match /news/{id} {
+      allow read: if canRead();
+      allow create: if request.resource.data.t is string
+        && request.resource.data.t.size() > 0 && request.resource.data.t.size() <= 500
+        && request.resource.data.ts == request.time
+        && ((isAdmin() && request.resource.data.keys().hasOnly(['t', 'a', 'an', 'ts', 'pin', 'cat', 'ti', 'cmt', 'eid', 'hist', 'imp', 'impUntil', 'impFrom', 'impAfter', 'impBanner', 'impPopup', 'impPushAll']) && request.resource.data.a == request.auth.uid)
+            || (boardOpen() && isMe(request.resource.data.get('p', '')) && request.resource.data.keys().hasOnly(['t', 'p', 'ts'])));
+      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pin', 'imp', 'impUntil', 't', 'ti', 'hist', 'edited']);
+      allow delete: if isAdmin() || isMe(resource.data.get('p', ''));
+    }
+    // Wichtige Nachrichten: „Gelesen“ je Spieler (Dokument-ID = <Beitrag>_<Spieler>) und Erinnerungen durch Admins
+    match /nreads/{rid} {
+      allow read: if canRead();
+      allow create, update: if isPlayer() && request.resource.data.keys().hasOnly(['n', 'p', 'ts'])
+        && isMe(request.resource.data.p) && rid == request.resource.data.n + '_' + request.resource.data.p;
+      allow delete: if isAdmin();
+    }
+    match /nremind/{id} {
+      allow create: if isAdmin() && request.resource.data.keys().hasOnly(['n', 'a', 'ts'])
+        && request.resource.data.a == request.auth.uid && request.resource.data.ts == request.time;
+      allow read, update, delete: if false;
+    }
+    // 👍 zu Pinnwand-Beiträgen: Dokument-ID = <Beitrag>_<Spieler>
+    match /nlikes/{lid} {
+      allow read: if canRead();
+      allow create: if isPlayer() && request.resource.data.keys().hasOnly(['n', 'p'])
+        && isMe(request.resource.data.p) && lid == request.resource.data.n + '_' + request.resource.data.p;
+      allow update: if false;
+      allow delete: if isAdmin() || isMe(resource.data.p);
+    }
+
+    // ---- Mannschafts-Chat (wenn eingeschaltet): „chat“ für alle, „chatadm“ nur für Admins ----
+    function chatOn() { return mainDoc().get('chatOn', false) == true; }
+    function chatMsgOk(ch) {
+      return chatOn()
+        && request.resource.data.keys().hasOnly(['ch', 't', 'p', 'a', 'an', 'ts', 'img', 're', 'poll'])
+        && request.resource.data.ch == ch
+        && request.resource.data.t is string && request.resource.data.t.size() <= 1000
+        && (request.resource.data.t.size() > 0 || request.resource.data.get('img', false) == true || 'poll' in request.resource.data)
+        && (!('img' in request.resource.data) || request.resource.data.img == true)
+        && (!('re' in request.resource.data) || (request.resource.data.re is string && request.resource.data.re.size() <= 40))
+        && (!('poll' in request.resource.data) || (request.resource.data.poll is string && request.resource.data.poll.size() <= 40))
+        && request.resource.data.ts == request.time
+        && ((isMe(request.resource.data.get('p', '')) && !('a' in request.resource.data))
+            || (isAdmin() && request.resource.data.get('a', '') == request.auth.uid && !('p' in request.resource.data)));
+    }
+    match /chat/{id} {
+      allow read: if canRead() && chatOn();
+      allow create: if chatMsgOk('team');
+      allow update: if false;
+      allow delete: if isAdmin() || isMe(resource.data.get('p', '')) || (signedIn() && resource.data.get('a', '') == request.auth.uid);
+    }
+    match /chatadm/{id} {
+      allow read: if isAdmin() && chatOn();
+      allow create: if isAdmin() && chatMsgOk('admins');
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+    // Fotos zu Chat-Nachrichten (gleiche Dokument-ID wie die Nachricht), werden erst bei Bedarf geladen
+    match /chatimg/{id} {
+      allow read: if canRead() && chatOn();
+      allow create: if chatOn() && (isPlayer() || isAdmin())
+        && request.resource.data.keys().hasOnly(['d'])
+        && request.resource.data.d is string && request.resource.data.d.size() < 950000
+        && existsAfter(/databases/$(db)/documents/chat/$(id));
+      allow update: if false;
+      allow delete: if isAdmin() || !existsAfter(/databases/$(db)/documents/chat/$(id));
+    }
+    match /chatimgadm/{id} {
+      allow read: if isAdmin() && chatOn();
+      allow create: if isAdmin() && chatOn()
+        && request.resource.data.keys().hasOnly(['d'])
+        && request.resource.data.d is string && request.resource.data.d.size() < 950000
+        && existsAfter(/databases/$(db)/documents/chatadm/$(id));
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+    // 👍/👎 zu Chat-Nachrichten: Dokument-ID = <Nachricht>_<Spieler>
+    match /creact/{rid} {
+      allow read: if canRead();
+      // e = 'up' (👍) oder 'down' (👎); pro Spieler und Nachricht genau eine Reaktion
+      allow create, update: if isPlayer() && request.resource.data.keys().hasOnly(['m', 'p', 'e'])
+        && isMe(request.resource.data.p) && rid == request.resource.data.m + '_' + request.resource.data.p
+        && request.resource.data.get('e', 'up') in ['up', 'down'];
+      allow delete: if isAdmin() || isMe(resource.data.p);
+    }
+
+    // ---- Sicherungspunkte ----
+    match /backups/{id} {
+      allow read, delete: if isFull();
+      allow create: if isAdmin() && request.resource.data.keys().hasOnly(['ts', 'name', 'label', 'data', 'by']);
+      allow update: if false;
+    }
+
+    // ---- Änderungsprotokoll: nur ergänzen, nie ändern oder löschen ----
+    match /log/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['ts', 'uid', 'name', 'text'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.ts == request.time;
+      allow update, delete: if false;
+    }
+  }
+}
