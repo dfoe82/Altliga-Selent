@@ -74,6 +74,8 @@ h3{margin:4px 0 0;font-size:12px;letter-spacing:.12em;text-transform:uppercase;c
 .cal{background:var(--c1);color:#fff;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 0;align-self:start}
 .cal span{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .cal b{font-family:var(--head);font-weight:400;font-size:26px;line-height:1.05}
+.cal b.rng,.mini .md b.rng{font-size:19px;letter-spacing:-.01em}
+.cal span.rng{font-size:10px}
 .ev .t{font-weight:700;font-size:17px;overflow-wrap:anywhere}
 .ev .s{color:var(--muted);font-size:14px;overflow-wrap:anywhere}
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
@@ -135,7 +137,7 @@ nav.tabbar svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width
    GitHub-Schlüssel direkt ins Repository (termine.json + termine.ics fürs
    Kalender-Abo). Nach etwa einer Minute sehen es alle.
    ========================================================================= */
-const APP_VERSION='1.35';
+const APP_VERSION='1.36';
 /* Repository: wird aus der Adresse erkannt (NAME.github.io/REPO/). Nur ändern, wenn das nicht passt. */
 const REPO_OVERRIDE={owner:'',repo:'',branch:'main'};
 
@@ -198,9 +200,21 @@ const startWord=e=>e.type==='game'&&!e.tour?'Anpfiff':'Beginn';
 function timeBits(e){ const b=[];
   if(e.meet||e.meetAt) b.push('Treffen'+(e.meet?' '+e.meet:'')+(e.meetAt?' · '+esc(e.meetAt):''));
   if(e.time) b.push((e.meet||e.meetAt?startWord(e)+' ':'')+e.time+' Uhr');
+  const eb=endBit(e); if(eb) b.push(eb);
   return b; }
+/* Mehrtägig: end = letzter Tag (JJJJ-MM-TT), endTime = Ende-Uhrzeit am letzten Tag (optional) */
+const multi=e=>!!e.end&&e.end>e.date;
+const lastDay=e=>multi(e)?e.end:e.date;
+function calBox(e){
+  const [,m,d]=e.date.split('-');
+  if(!multi(e)) return {w:wd(e.date),d:String(+d),m:MON[+m-1].slice(0,3),r:false};
+  const [,m2,d2]=e.end.split('-');
+  return {w:wd(e.date)+'–'+wd(e.end),d:(+d)+'–'+(+d2),m:m===m2?MON[+m-1].slice(0,3):MON[+m-1].slice(0,3)+'/'+MON[+m2-1].slice(0,3),r:true};
+}
+const rangeText=e=>multi(e)?`${wd(e.date)} ${fmtDate(e.date).slice(0,6)}–${wd(e.end)} ${fmtDate(e.end)}`:`${wd(e.date)}, ${fmtDate(e.date)}`;
+const endBit=e=>multi(e)&&isTime(e.endTime)?`Ende ${wd(e.end)} ${e.endTime} Uhr`:(!multi(e)&&isTime(e.endTime)?`bis ${e.endTime} Uhr`:'');
 const sortUp=(a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||''));
-const upcoming=()=>D.events.filter(e=>e.date>=TODAY).sort(sortUp);
+const upcoming=()=>D.events.filter(e=>lastDay(e)>=TODAY).sort(sortUp);
 const typeBadge=e=>e.type==='game'?(e.tour?'Turnier':e.home!==false?'Spiel · Heim':'Spiel · Auswärts'):ETYPE[e.type];
 function mini(e){
   const [,m,d]=e.date.split('-'), g=e.type==='game';
@@ -208,7 +222,7 @@ function mini(e){
   const title=g&&!e.tour?(e.home!==false?`gegen ${e.title}`:`bei ${e.title}`):evTitle(e);
   const bits=[...timeBits(e)]; if(e.place&&!(g&&e.tour)) bits.push(esc(e.place)); if(e.note) bits.push(esc(e.note));
   return `<button class="mini ${e.type==='training'?'tr':e.type==='event'?'evt':''} ${e.cancel?'cx':''}" data-act="goto" data-v="events">
-    <span class="md"><b>${+d}</b><i>${wd(e.date)} · ${MON[+m-1].slice(0,3)}</i></span>
+    ${(c=>`<span class="md"><b class="${c.r?'rng':''}">${c.d}</b><i>${c.w} · ${c.m}</i></span>`)(calBox(e))}
     <span class="mt"><span class="ml">${lb}</span><span class="mv">${esc(title)}</span><span class="ms">${bits.join(' · ')}</span></span></button>`;
 }
 function homeView(){
@@ -222,14 +236,14 @@ function trBadges(e){
 }
 function evCard(e,cls,isNext){
   const [,m,d]=e.date.split('-'), key='del:'+e.id;
-  const adm=isAdmin()&&e.date>=TODAY;
+  const adm=isAdmin()&&lastDay(e)>=TODAY;
   const acts=isAdmin()?`<div class="evact">
       ${adm&&e.type==='training'?`<div class="seg" role="group" aria-label="Ort">${venueKeys().map(k=>`<button data-act="venue" data-v="${e.id}" data-x="${k}" aria-pressed="${(e.venue||'out')===k}">${esc(venueLabel(k))}</button>`).join('')}</div>`:''}
       ${adm?`<button class="chip" data-act="cancel" data-v="${e.id}" aria-pressed="${!!e.cancel}">${e.cancel?'Findet doch statt':e.type==='game'?'Abgesagt':'Fällt aus'}</button>`:''}
       <button class="chip" data-act="edit" data-v="${e.id}">Bearbeiten</button>
       <button class="x" data-act="askDel" data-v="${e.id}" aria-label="Termin löschen">×</button></div>
       ${ui.confirm===key?`<div class="confirm"><span>Termin „${esc(evTitle(e))}“ am ${fmtDate(e.date)} löschen?</span><div class="row"><button class="btn danger sm" data-act="del" data-v="${e.id}">Löschen</button><button class="btn ghost sm" data-act="noDel">Abbrechen</button></div></div>`:''}`:'';
-  return `<div class="ev ${cls||''} ${e.cancel?'cancel':''}"><div class="cal"><span>${wd(e.date)}</span><b>${+d}</b><span>${MON[+m-1].slice(0,3)}</span></div>
+  return `<div class="ev ${cls||''} ${e.cancel?'cancel':''}">${(c=>`<div class="cal"><span class="${c.r?'rng':''}">${c.w}</span><b class="${c.r?'rng':''}">${c.d}</b><span class="${c.r?'rng':''}">${c.m}</span></div>`)(calBox(e))}
     <div style="min-width:0"><div class="t">${esc(evTitle(e))}</div>
       <div class="s">${[...timeBits(e),esc(e.place)].filter(Boolean).join(' · ')}</div>
       ${e.note?`<div class="s">${esc(e.note)}</div>`:''}
@@ -238,7 +252,7 @@ function evCard(e,cls,isNext){
 }
 function eventsView(){
   const f=ui.filter, all=D.events.filter(e=>f==='all'||e.type===f);
-  const up=all.filter(e=>e.date>=TODAY).sort(sortUp), past=all.filter(e=>e.date<TODAY).sort((a,b)=>sortUp(b,a));
+  const up=all.filter(e=>lastDay(e)>=TODAY).sort(sortUp), past=all.filter(e=>lastDay(e)<TODAY).sort((a,b)=>sortUp(b,a));
   const cnt=t=>D.events.filter(e=>t==='all'||e.type===t).length;
   return `${adminBar()}<div class="panel">
     <div class="row spread"><h2>Termine</h2><div class="row"><button class="btn ghost sm" data-act="calOpen">📅 In meinen Kalender</button>${isAdmin()?'<button class="btn sm" data-act="new">+ Termin</button>':''}</div></div>
@@ -328,12 +342,20 @@ function loginBody(){
     <button class="linkbtn" data-act="localMode" style="justify-self:start">Ohne Schlüssel ausprobieren (nur auf diesem Gerät)</button>`;
 }
 /* Google Kalender: Termin-Vorlage, speichert direkt (Android, aber auch am PC) */
+/* Zeitraum für Kalender: ganztägig oder mit Uhrzeit, auch über mehrere Tage */
+function evSpan(e){
+  const t=isTime(e.time)?e.time:'', mt=isTime(e.meet)&&(!t||e.meet<t)?e.meet:'', st=mt||t, ld=lastDay(e), et=isTime(e.endTime)?e.endTime:'';
+  const add=(d,tm,min)=>{const x=new Date(Date.UTC(+d.slice(0,4),+d.slice(5,7)-1,+d.slice(8,10),+tm.slice(0,2),+tm.slice(3,5))+min*60000); return x.toISOString().slice(0,16).replace(/[-:]/g,'')+'00';};
+  if(!st) return {allDay:true,s:e.date.replace(/-/g,''),e:shiftDate(ld,1).replace(/-/g,'')};
+  const s=e.date.replace(/-/g,'')+'T'+st.replace(':','')+'00';
+  let en;
+  if(et&&(multi(e)||et>st)) en=ld.replace(/-/g,'')+'T'+et.replace(':','')+'00';
+  else en=add(ld,t||st,ICS_DUR[e.type]||120);
+  return {allDay:false,s,e:en};
+}
 function googleUrl(e){
   const t=isTime(e.time)?e.time:'', mt=isTime(e.meet)&&(!t||e.meet<t)?e.meet:'', st=mt||t, d=e.date.replace(/-/g,'');
-  let dates;
-  if(st){ const end=new Date(Date.UTC(+e.date.slice(0,4),+e.date.slice(5,7)-1,+e.date.slice(8,10),+(t||st).slice(0,2),+(t||st).slice(3,5))+(ICS_DUR[e.type]||120)*60000);
-    dates=d+'T'+st.replace(':','')+'00/'+end.toISOString().slice(0,16).replace(/[-:]/g,'')+'00'; }
-  else dates=d+'/'+shiftDate(e.date,1).replace(/-/g,'');
+  const sp=evSpan(e), dates=sp.s+'/'+sp.e;
   const det=[e.meet||e.meetAt?'Treffen'+(e.meet?' '+e.meet:'')+(e.meetAt?', '+e.meetAt:''):'',e.meet&&t?startWord(e)+' '+t+' Uhr':'',e.note||''].filter(Boolean).join('\n');
   const q=new URLSearchParams({action:'TEMPLATE',text:(e.cancel?'Abgesagt: ':'')+evTitle(e),dates,ctz:'Europe/Berlin',details:det,location:e.place||''});
   return 'https://calendar.google.com/calendar/render?'+q.toString();
@@ -346,7 +368,7 @@ function cal1Body(id){
     :`<button class="btn" data-act="ics1file" data-v="${e.id}">iPhone / iPad (Datei)</button>`;
   const goog=`<a class="btn" href="${esc(googleUrl(e))}" target="_blank" rel="noopener">Google Kalender (Android)</a>`;
   return `<h2>In Kalender eintragen</h2>
-    <p style="margin:0"><b>${esc(evTitle(e))}</b><br><span class="hint">${wd(e.date)}, ${fmtDate(e.date)} · ${[...timeBits(e),esc(e.place)].filter(Boolean).join(' · ')}</span></p>
+    <p style="margin:0"><b>${esc(evTitle(e))}</b><br><span class="hint">${rangeText(e)} · ${[...timeBits(e),esc(e.place)].filter(Boolean).join(' · ')}</span></p>
     <div style="display:grid;gap:8px">${isAndroid()?goog+apple:apple+goog}
       <button class="btn ghost" data-act="ics1file" data-v="${e.id}">Als Datei (Outlook, andere)</button></div>
     <p class="hint">${hosted?'iPhone: Es öffnet sich der Termin – unten auf <b>„Zum Kalender hinzufügen“</b> tippen.':'iPhone: Die Datei öffnen und „Zum Kalender hinzufügen“ wählen. Klappt das nicht, das Kalender-Abo nutzen.'} Android: Mit Google anmelden und <b>Speichern</b> tippen.</p>
@@ -364,13 +386,17 @@ function calBody(){
     <p class="hint"><b>Einmalig übernehmen:</b> alle Termine als Datei – ändert sich danach nicht mehr.</p>
     <div class="row">${hosted?`<a class="btn ghost" href="termine.ics" target="_blank" rel="noopener">Alle Termine übernehmen</a>`:'<button class="btn ghost" data-act="icsAll">Alle Termine als Datei</button>'}<button class="btn ghost" data-act="closeModal">Schließen</button></div>`;
 }
-const blank=()=>({id:'',type:'training',date:TODAY,time:'19:00',meet:'',meetAt:'',title:'',home:true,tour:false,place:'',note:'',venue:'out',cancel:false,repeat:false,until:''});
+const blank=()=>({end:'',endTime:'',daily:false,id:'',type:'training',date:TODAY,time:'19:00',meet:'',meetAt:'',title:'',home:true,tour:false,place:'',note:'',venue:'out',cancel:false,repeat:false,until:''});
 function formBody(){
   const f=ui.form, t=f.type, edit=!!f.id;
   return `<h2>${edit?'Termin bearbeiten':'Neuer Termin'}</h2>
     <div class="seg" role="group" aria-label="Art">${[['game','Spiel'],['training','Training'],['event','Event']].map(([k,l])=>`<button data-act="fType" data-v="${k}" aria-pressed="${t===k}">${l}</button>`).join('')}</div>
     <div class="two"><label class="f">Datum<input type="date" id="fDate" value="${esc(f.date)}"></label>
       <label class="f">${t==='game'&&!f.tour?'Anpfiff':'Beginn'}<input type="time" id="fTime" value="${esc(f.time)}"></label></div>
+    ${f.repeat?'':`<div class="two"><label class="f">Bis (mehrtägig, optional)<input type="date" id="fEnd" min="${esc(f.date)}" value="${esc(f.end||'')}"></label>
+      <label class="f">${f.daily?'Ende je Tag':'Ende'} (optional)<input type="time" id="fEndTime" value="${esc(f.endTime||'')}"></label></div>
+    ${f.end&&f.end>f.date&&!edit?`<label class="check"><input type="checkbox" id="fDaily" ${f.daily?'checked':''}> Jeden Tag einzeln anlegen (${dayList(f.date,f.end).length} Termine – z. B. wenn die Tage unterschiedlich ablaufen)</label>`:''}
+    ${f.end&&f.end>f.date?`<p class="hint">${f.daily&&!edit?'Es entsteht je Tag ein eigener Termin mit denselben Angaben; Uhrzeiten und Absagen kannst du danach pro Tag ändern.':'Ein Termin über '+dayList(f.date,f.end).length+' Tage – erscheint als eine Karte und als ein Eintrag im Kalender.'}</p>`:''}`}
     <div class="two"><label class="f">Treffen um<input type="time" id="fMeet" value="${esc(f.meet)}"></label>
       <label class="f">Treffpunkt<input id="fMeetAt" maxlength="60" value="${esc(f.meetAt)}" placeholder="optional, z. B. Vereinsheim"></label></div>
     <label class="f">${t==='game'?(f.tour?'Turnier':'Gegner'):t==='training'?'Bezeichnung (optional)':'Bezeichnung'}<input id="fTitle" maxlength="60" value="${esc(f.title)}" placeholder="${t==='game'?(f.tour?'z. B. Sylt Altliga Turnier':'z. B. TSV Nordheim'):t==='training'?'Training':'z. B. Weihnachtsfeier'}"></label>
@@ -384,11 +410,12 @@ function formBody(){
       ${f.repeat?`<label class="f">Bis einschließlich<input type="date" id="fUntil" value="${esc(f.until||shiftDate(f.date,364))}"></label><p class="hint">${seriesDates(f.date,f.until||shiftDate(f.date,364)).length} Trainings am ${wd(f.date)}, höchstens 60.</p>`:''}`:''}
     <div class="row"><button class="btn" data-act="saveForm">Speichern</button><button class="btn ghost" data-act="closeModal">Abbrechen</button></div>`;
 }
+function dayList(from,to){const o=[]; for(let d=from;d<=to&&o.length<14;d=shiftDate(d,1)) o.push(d); return o;}
 function seriesDates(from,until){const o=[]; for(let d=from;d<=(until||from)&&o.length<60;d=shiftDate(d,7)) o.push(d); return o.length?o:[from];}
 function readForm(){
   const f=ui.form, g=id=>document.getElementById(id);
-  if(!f) return; [['fDate','date'],['fTime','time'],['fMeet','meet'],['fMeetAt','meetAt'],['fTitle','title'],['fPlace','place'],['fNote','note'],['fUntil','until']].forEach(([id,k])=>{ if(g(id)) f[k]=g(id).value; });
-  [['fTour','tour'],['fCancel','cancel'],['fRepeat','repeat']].forEach(([id,k])=>{ if(g(id)) f[k]=g(id).checked; });
+  if(!f) return; [['fDate','date'],['fEnd','end'],['fEndTime','endTime'],['fTime','time'],['fMeet','meet'],['fMeetAt','meetAt'],['fTitle','title'],['fPlace','place'],['fNote','note'],['fUntil','until']].forEach(([id,k])=>{ if(g(id)) f[k]=g(id).value; });
+  [['fTour','tour'],['fCancel','cancel'],['fRepeat','repeat'],['fDaily','daily']].forEach(([id,k])=>{ if(g(id)) f[k]=g(id).checked; });
 }
 
 /* ---------- Änderungen ---------- */
@@ -519,8 +546,9 @@ function icsText(events,name){
     const t=isTime(e.time)?e.time:'', mt=isTime(e.meet)&&(!t||e.meet<t)?e.meet:'', tr=e.type==='training';
     const title=(e.cancel?'Abgesagt: ':'')+evTitle(e)+(tr&&!e.cancel?' ('+venueLabel(e.venue||'out')+')':'');
     L.push('BEGIN:VEVENT','UID:'+e.id+'@altliga-termine','DTSTAMP:'+stamp);
-    if(t||mt) L.push('DTSTART;TZID=Europe/Berlin:'+loc(e.date,mt||t),'DTEND;TZID=Europe/Berlin:'+add(e.date,t||mt,ICS_DUR[e.type]||120));
-    else { const n=shiftDate(e.date,1).replace(/-/g,''); L.push('DTSTART;VALUE=DATE:'+e.date.replace(/-/g,''),'DTEND;VALUE=DATE:'+n); }
+    const sp=evSpan(e);
+    if(!sp.allDay) L.push('DTSTART;TZID=Europe/Berlin:'+sp.s,'DTEND;TZID=Europe/Berlin:'+sp.e);
+    else L.push('DTSTART;VALUE=DATE:'+sp.s,'DTEND;VALUE=DATE:'+sp.e);
     L.push('SUMMARY:'+e2(title));
     if(e.place) L.push('LOCATION:'+e2(e.place));
     const dsc=[e.meet||e.meetAt?'Treffen'+(e.meet?' '+e.meet:'')+(e.meetAt?', '+e.meetAt:''):'',e.meet&&t?startWord(e)+' '+t+' Uhr':'',e.note||''].filter(Boolean).join('\n');
@@ -598,12 +626,19 @@ function saveForm(){
   if(isTime(f.meet)) base.meet=f.meet; if((f.meetAt||'').trim()) base.meetAt=f.meetAt.trim().slice(0,60);
   if(t==='game'){ if(f.tour){ base.tour=true; base.home=false; } else base.home=f.home!==false; } else base.home=true;
   if(t==='training') base.venue=['in','alt'].includes(f.venue)?f.venue:'out';
+  const isMulti=!f.repeat&&f.end&&f.end>f.date;
+  if(f.end&&f.end<f.date) return toast('„Bis“ liegt vor dem Datum');
+  if(isMulti&&dayList(f.date,f.end).length>=14&&f.end>shiftDate(f.date,13)) return toast('Höchstens 14 Tage');
+  if(isTime(f.endTime)) base.endTime=f.endTime;
+  if(isMulti&&f.daily&&!f.id){ const days=dayList(f.date,f.end); ui.modal=null; ui.form=null;
+    change(days.map(d=>({k:'put',e:{id:uid(),date:d,...base}})),`${days.length} Termine angelegt (je Tag einer)`); return; }
+  if(isMulti) base.end=f.end;
   if(f.id){ const n={id:f.id,date:f.date,...base}; if(f.cancel) n.cancel=true; ui.modal=null; ui.form=null; change([{k:'put',e:n}],'Termin gespeichert'); return; }
   const dates=t==='training'&&f.repeat?seriesDates(f.date,f.until||shiftDate(f.date,364)):[f.date];
   ui.modal=null; ui.form=null;
   change(dates.map(d=>({k:'put',e:{id:uid(),date:d,...base}})),dates.length>1?`${dates.length} Trainings angelegt`:'Termin gespeichert');
 }
-document.addEventListener('change',ev=>{ if(ui.modal==='form'&&['fTour','fRepeat','fDate'].includes(ev.target.id)){ readForm(); renderModal(); } });
+document.addEventListener('change',ev=>{ if(ui.modal==='form'&&['fTour','fRepeat','fDate','fEnd','fDaily'].includes(ev.target.id)){ readForm(); renderModal(); } });
 document.addEventListener('keydown',ev=>{ if(ev.key==='Escape'&&ui.modal){ ui.modal=null; ui.form=null; renderModal(); } if(ev.key==='Enter'&&ev.target.id==='lToken'){ const b=document.querySelector('[data-act=login]'); if(b) b.click(); } });
 window.addEventListener('beforeunload',e=>{ if(ADM.queue.length){ e.preventDefault(); e.returnValue=''; } });
 load();

@@ -10,17 +10,19 @@ Diese Version ist der **Zwischenschritt**: nur **Übersicht** (die nächsten 5 T
 
 | Datei | Wofür |
 |---|---|
-| `index.html` | Die App |
-| `termine.json` | Die Termine. Die App liest und schreibt diese Datei. |
-| `termine.ics` | Für das Kalender-Abo. Die App aktualisiert sie beim Speichern selbst. |
-| Ordner `kal` (entsteht von selbst) | Je Termin eine Kalenderdatei, damit das iPhone einzelne Termine speichern kann. |
+| `index.html` | Die App – die **einzige** Datei, die du hochlädst |
+| `termine.json` (entsteht von selbst) | Die Termine. Die App legt sie beim ersten Admin-Login an und schreibt sie bei jeder Änderung. |
+| `termine.ics` (entsteht von selbst) | Für das Kalender-Abo |
+| Ordner `kal` (entsteht von selbst) | Je Termin eine Kalenderdatei, damit das iPhone einzelne Termine speichern kann |
+
+> **Wichtig bei Updates:** Immer **nur `index.html` ersetzen.** `termine.json`, `termine.ics` und `kal` gehören der App – nie von Hand überschreiben, sonst sind eingetragene Termine weg. (Falls doch passiert: Abschnitt 4a.)
 
 ---
 
 ## 1. App auf GitHub Pages stellen
 
 1. Auf github.com ein neues Repository anlegen, z. B. `termine` (öffentlich).
-2. **Add file → Upload files** → `index.html`, `termine.json` und `termine.ics` hochladen → **Commit changes**.
+2. **Add file → Upload files** → nur `index.html` hochladen → **Commit changes**.
 3. **Settings → Pages** → bei „Branch“ `main` und `/ (root)` wählen → **Save**.
 4. Nach ein bis zwei Minuten ist die App erreichbar unter `https://DEIN-GITHUB-NAME.github.io/termine/`
 
@@ -53,10 +55,17 @@ Schloss oben rechts → angemeldet (gelb). Unten erscheint der Reiter **Optionen
 - **Termine → + Termin:** Spiel, Training oder Event. Dazu Datum, Anpfiff bzw. Beginn, optional **Treffen um** und **Treffpunkt**, Ort und Notiz.
   - **Training:** Standard 19:00 Uhr auf dem Schulsportplatz. Den Ort wählst du per Tipp: **Draußen · Halle · OHLA Stadion**. Mit „Jede Woche wiederholen“ legst du eine Serie an. Wochentag und Uhrzeit sind frei wählbar.
   - **Spiel:** Gegner und Heim/Auswärts. Oder **Turnier** ankreuzen, dann wird der Name so angezeigt.
+- **Mehrere Tage** (z. B. Turnier, Mannschaftsfahrt): beim Termin **„Bis“** ausfüllen, optional **Ende** (Uhrzeit am letzten Tag). Das ergibt eine Karte „Fr 18.–So 20. Jun“ und einen Eintrag über alle Tage im Kalender; der Termin bleibt bis zum letzten Tag unter „Kommend“. Mit dem Häkchen **„Jeden Tag einzeln anlegen“** entsteht stattdessen je Tag ein eigener Termin – sinnvoll, wenn die Tage unterschiedlich ablaufen.
 - **Direkt am Termin:** Trainingsort umschalten, **Fällt aus** bzw. **Abgesagt**, **Bearbeiten**, **×** löschen.
 - **Optionen:** Name der App, Mannschaft, Namen der Trainingsorte, Termine als Datei herunterladen.
 
 Oben steht nach jeder Änderung „✓ Gespeichert – für alle sichtbar in etwa einer Minute“. Klappt es nicht (z. B. kein Netz), bleibt die Änderung auf dem Gerät. Mit **Erneut versuchen** wird sie nachgeholt. Ändern zwei Admins kurz nacheinander, werden beide Änderungen übernommen.
+
+## 4a. Etwas ist verloren gegangen? Früheren Stand zurückholen
+
+**Optionen → Frühere Stände → anzeigen.** Jede Speicherung ist mit Datum aufgeführt. Beim gewünschten Stand **Zurückholen** tippen und bestätigen. Das Zurückholen ist selbst wieder eine Änderung und lässt sich genauso rückgängig machen.
+
+Hinweis: Direkt nach dem Speichern zeigt die Webseite für etwa eine Minute noch den alten Stand. Als angemeldeter Admin siehst du immer den aktuellen Stand direkt von GitHub.
 
 ## 5. Kalender
 
