@@ -81,6 +81,11 @@ h3{margin:4px 0 0;font-size:12px;letter-spacing:.12em;text-transform:uppercase;c
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .badge{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--soft);border-radius:6px;padding:3px 8px}
 .badge.nx{background:var(--c2)}
+.badge.new{background:#C8102E;color:#fff}
+.badge.chg{background:#E07B00;color:#fff}
+.mini .ml .cg{background:#E07B00;color:#fff;border-radius:5px;padding:1px 6px;margin-right:6px;letter-spacing:.06em}
+.ev .s.chgt,.mini .ms.chgt{color:#A35A00;font-weight:600}
+.mini .ml .nw{background:#C8102E;color:#fff;border-radius:5px;padding:1px 6px;margin-right:6px;letter-spacing:.06em}
 .badge.tr{background:#D6ECEA;color:#0A5652}
 .badge.cx{background:var(--due);color:#fff}
 .badge.vin{background:#E4E0F5;color:#3D2C8D}
@@ -137,7 +142,7 @@ nav.tabbar svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width
    GitHub-Schlüssel direkt ins Repository (termine.json + termine.ics fürs
    Kalender-Abo). Nach etwa einer Minute sehen es alle.
    ========================================================================= */
-const APP_VERSION='1.36';
+const APP_VERSION='1.38';
 /* Repository: wird aus der Adresse erkannt (NAME.github.io/REPO/). Nur ändern, wenn das nicht passt. */
 const REPO_OVERRIDE={owner:'',repo:'',branch:'main'};
 
@@ -173,7 +178,7 @@ function normalize(d){
   d=d&&typeof d==='object'?d:{};
   return {v:1,appName:d.appName||'Altliga-Termine',teamName:d.teamName||'TSV Selent Altliga',
     venues:{out:'Schulsportplatz',in:'Halle',alt:'OHLA Stadion',...(d.venues||{})},
-    events:(Array.isArray(d.events)?d.events:[]).filter(e=>e&&e.id&&e.date&&ETYPE[e.type]),updated:d.updated||0,kal:!!d.kal};
+    events:(Array.isArray(d.events)?d.events:[]).filter(e=>e&&e.id&&e.date&&ETYPE[e.type]),updated:d.updated||0,kal:!!d.kal,newDays:[0,7,14].includes(d.newDays)?d.newDays:14};
 }
 const venueName=k=>((D.venues||{})[k]||'').trim();
 const venueLabel=k=>k==='in'?'Halle':k==='alt'?(venueName('alt')||'Anderer Ort'):'Draußen';
@@ -215,6 +220,28 @@ const rangeText=e=>multi(e)?`${wd(e.date)} ${fmtDate(e.date).slice(0,6)}–${wd(
 const endBit=e=>multi(e)&&isTime(e.endTime)?`Ende ${wd(e.end)} ${e.endTime} Uhr`:(!multi(e)&&isTime(e.endTime)?`bis ${e.endTime} Uhr`:'');
 const sortUp=(a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||''));
 const upcoming=()=>D.events.filter(e=>lastDay(e)>=TODAY).sort(sortUp);
+/* „Neu“: neu angelegte Termine (Feld created) für 1 oder 2 Wochen markieren, einstellbar unter Optionen */
+const isNew=e=>!!D.newDays&&!!e.created&&Date.now()-e.created<D.newDays*864e5&&lastDay(e)>=TODAY;
+/* „Geändert“: Datum, Uhrzeit, Treffen, Ort, Trainingsort oder Absage geändert – so lange markiert wie „Neu“ */
+const CHG_F=[['date','Datum'],['end','Bis'],['time','Uhrzeit'],['meet','Treffen'],['meetAt','Treffpunkt'],['place','Ort'],['venue','Trainingsort'],['cancel','Absage']];
+const chgVal=(e,f)=>f==='cancel'?!!e.cancel:f==='venue'?(e.type==='training'?(e.venue||'out'):''):f==='end'?(e.end&&e.end>e.date?e.end:''):(e[f]||'');
+function markChange(old,n){
+  const now=Date.now(), win=(D.newDays||0)*864e5, keep=old.changed&&old.chg&&now-old.changed<win;
+  const diff=CHG_F.map(([f])=>f).filter(f=>String(chgVal(old,f))!==String(chgVal(n,f)));
+  if(!diff.length||!win||lastDay(n)<TODAY){ if(keep){ n.chg=old.chg; n.changed=old.changed; } else { delete n.chg; delete n.changed; } return; }
+  const res=keep?{...old.chg}:{};
+  diff.forEach(f=>{ if(!(f in res)) res[f]=chgVal(old,f); });
+  Object.keys(res).forEach(f=>{ if(String(res[f])===String(chgVal(n,f))) delete res[f]; });
+  if(Object.keys(res).length){ n.chg=res; n.changed=now; } else { delete n.chg; delete n.changed; }
+}
+const isChg=e=>!!(D.newDays||0)&&!!e.changed&&!!e.chg&&Object.keys(e.chg).length>0&&Date.now()-e.changed<(D.newDays||0)*864e5&&lastDay(e)>=TODAY&&!isNew(e);
+function chgText(e){
+  if(!isChg(e)) return '';
+  const fv=(f,v)=>v===''||v==null?'leer':f==='date'||f==='end'?fmtDate(v).slice(0,6):f==='venue'?venueLabel(v):String(v);
+  return Object.entries(e.chg).filter(([f])=>!(f==='place'&&'venue' in e.chg)).map(([f,v])=>{ const lb=(CHG_F.find(x=>x[0]===f)||[f,f])[1];
+    if(f==='cancel') return e.cancel?(e.type==='game'?'abgesagt':'fällt aus'):'findet wieder statt';
+    return `${f==='time'&&e.type==='game'&&!e.tour?'Anpfiff':lb} (vorher ${fv(f,v)})`; }).join(', ');
+}
 const typeBadge=e=>e.type==='game'?(e.tour?'Turnier':e.home!==false?'Spiel · Heim':'Spiel · Auswärts'):ETYPE[e.type];
 function mini(e){
   const [,m,d]=e.date.split('-'), g=e.type==='game';
@@ -223,12 +250,13 @@ function mini(e){
   const bits=[...timeBits(e)]; if(e.place&&!(g&&e.tour)) bits.push(esc(e.place)); if(e.note) bits.push(esc(e.note));
   return `<button class="mini ${e.type==='training'?'tr':e.type==='event'?'evt':''} ${e.cancel?'cx':''}" data-act="goto" data-v="events">
     ${(c=>`<span class="md"><b class="${c.r?'rng':''}">${c.d}</b><i>${c.w} · ${c.m}</i></span>`)(calBox(e))}
-    <span class="mt"><span class="ml">${lb}</span><span class="mv">${esc(title)}</span><span class="ms">${bits.join(' · ')}</span></span></button>`;
+    <span class="mt"><span class="ml">${isNew(e)?'<span class="nw">Neu</span>':isChg(e)?'<span class="cg">Geändert</span>':''}${lb}</span><span class="mv">${esc(title)}</span><span class="ms">${bits.join(' · ')}</span>${isChg(e)?`<span class="ms chgt">Geändert: ${esc(chgText(e))}</span>`:''}</span></button>`;
 }
 function homeView(){
-  const l=upcoming().slice(0,5);
+  const l=upcoming().slice(0,5), shown=new Set(l.map(e=>e.id)), nw=upcoming().filter(e=>(isNew(e)||isChg(e))&&!shown.has(e.id));
   return `${adminBar()}<div class="hd">Nächste Termine <span>antippen für alle Termine</span></div>
     ${l.length?`<div class="minis">${l.map(mini).join('')}</div>`:'<div class="panel"><p class="hint">Keine kommenden Termine.</p></div>'}
+    ${nw.length?`<div class="hd">Neu &amp; geändert <span>${nw.length} weitere${nw.length>8?' · die nächsten 8':''}</span></div><div class="minis">${nw.slice(0,8).map(mini).join('')}</div>`:''}
     <div class="row"><button class="chip" data-act="goto" data-v="events">Alle Termine ›</button><button class="chip" data-act="calOpen">📅 In meinen Kalender</button></div>`;
 }
 function trBadges(e){
@@ -247,7 +275,7 @@ function evCard(e,cls,isNext){
     <div style="min-width:0"><div class="t">${esc(evTitle(e))}</div>
       <div class="s">${[...timeBits(e),esc(e.place)].filter(Boolean).join(' · ')}</div>
       ${e.note?`<div class="s">${esc(e.note)}</div>`:''}
-      <div class="tags">${isNext?'<span class="badge nx">Nächster</span>':''}<span class="badge ${e.type==='training'?'tr':''}">${typeBadge(e)}</span>${trBadges(e)}</div>
+      ${isChg(e)?`<div class="s chgt">Geändert: ${esc(chgText(e))}</div>`:''}<div class="tags">${isNew(e)?'<span class="badge new">Neu</span>':isChg(e)?'<span class="badge chg">Geändert</span>':''}${isNext?'<span class="badge nx">Nächster</span>':''}<span class="badge ${e.type==='training'?'tr':''}">${typeBadge(e)}</span>${trBadges(e)}</div>
       <button class="linkbtn" data-act="ics1" data-v="${e.id}">📅 In Kalender eintragen</button></div>${acts}</div>`;
 }
 function eventsView(){
@@ -277,6 +305,7 @@ function settingsView(){
   return `${adminBar()}<div class="panel"><h2>Optionen</h2>
     <div class="two"><label class="f">Name der App<input id="sApp" maxlength="30" value="${esc(D.appName)}"></label>
     <label class="f">Mannschaft<input id="sTeam" maxlength="40" value="${esc(D.teamName)}"></label></div>
+    <div class="f">„Neu“- und „Geändert“-Markierung<div class="seg" role="group" aria-label="Neu-Markierung">${[[0,'Aus'],[7,'1 Woche'],[14,'2 Wochen']].map(([k,l])=>`<button data-act="newDays" data-v="${k}" aria-pressed="${D.newDays===k}">${l}</button>`).join('')}</div></div>
     <h3>Trainingsorte</h3>
     <label class="f">Draußen<input id="sOut" maxlength="40" value="${esc(venueName('out'))}"></label>
     <label class="f">Halle<input id="sIn" maxlength="40" value="${esc(venueName('in'))}"></label>
@@ -595,6 +624,7 @@ document.addEventListener('click',async ev=>{
       ADM.ok=false; ADM.local=false; ADM.token=''; ADM.status=null; ADM.queue=[]; ls.set('at-token',null); ls.set('at-local',null); ls.set('at-localdata',null); ls.set('at-queue',null);
       ui.tab=ui.tab==='settings'?'home':ui.tab; toast('Abgemeldet'); load(); break;
     case 'retry': flush(); break;
+    case 'newDays': change([{k:'set',v:{newDays:+v}}],+v?`Neue Termine ${+v===7?'1 Woche':'2 Wochen'} markiert`:'Neu-Markierung aus'); break;
     case 'hist': loadHistory(); break;
     case 'askRestore': ui.confirm='rs:'+v; render(); break;
     case 'restore': restoreVersion(v); break;
@@ -605,8 +635,8 @@ document.addEventListener('click',async ev=>{
     case 'fVenue': { const f=ui.form, old=venueName(f.venue||'out'); f.venue=v; if(!f.place||f.place===old) f.place=venueName(v); renderModal(); break; }
     case 'saveForm': saveForm(); break;
     case 'venue': { const e=D.events.find(x=>x.id===el.dataset.v); if(!e) return; const k=el.dataset.x, old=venueName(e.venue||'out');
-      const n={...e,venue:k}; if(!e.place||e.place===old) n.place=venueName(k); change([{k:'put',e:n}],`Training am ${fmtDate(e.date)}: ${venueLabel(k)}`); break; }
-    case 'cancel': { const e=D.events.find(x=>x.id===v); if(!e) return; const n={...e}; if(e.cancel) delete n.cancel; else n.cancel=true;
+      const n={...e,venue:k}; if(!e.place||e.place===old) n.place=venueName(k); markChange(e,n); change([{k:'put',e:n}],`Training am ${fmtDate(e.date)}: ${venueLabel(k)}`); break; }
+    case 'cancel': { const e=D.events.find(x=>x.id===v); if(!e) return; const n={...e}; if(e.cancel) delete n.cancel; else n.cancel=true; markChange(e,n);
       change([{k:'put',e:n}],n.cancel?`${evTitle(e)} am ${fmtDate(e.date)}: ${CX_WORD[e.type]}`:`${evTitle(e)} findet statt`); break; }
     case 'askDel': ui.confirm='del:'+v; render(); break;
     case 'noDel': ui.confirm=null; render(); break;
@@ -631,12 +661,12 @@ function saveForm(){
   if(isMulti&&dayList(f.date,f.end).length>=14&&f.end>shiftDate(f.date,13)) return toast('Höchstens 14 Tage');
   if(isTime(f.endTime)) base.endTime=f.endTime;
   if(isMulti&&f.daily&&!f.id){ const days=dayList(f.date,f.end); ui.modal=null; ui.form=null;
-    change(days.map(d=>({k:'put',e:{id:uid(),date:d,...base}})),`${days.length} Termine angelegt (je Tag einer)`); return; }
+    change(days.map(d=>({k:'put',e:{id:uid(),date:d,...base,created:Date.now()}})),`${days.length} Termine angelegt (je Tag einer)`); return; }
   if(isMulti) base.end=f.end;
-  if(f.id){ const n={id:f.id,date:f.date,...base}; if(f.cancel) n.cancel=true; ui.modal=null; ui.form=null; change([{k:'put',e:n}],'Termin gespeichert'); return; }
+  if(f.id){ const n={id:f.id,date:f.date,...base}; if(f.created) n.created=f.created; if(f.cancel) n.cancel=true; const oe=D.events.find(x=>x.id===f.id); if(oe) markChange(oe,n); ui.modal=null; ui.form=null; change([{k:'put',e:n}],'Termin gespeichert'); return; }
   const dates=t==='training'&&f.repeat?seriesDates(f.date,f.until||shiftDate(f.date,364)):[f.date];
   ui.modal=null; ui.form=null;
-  change(dates.map(d=>({k:'put',e:{id:uid(),date:d,...base}})),dates.length>1?`${dates.length} Trainings angelegt`:'Termin gespeichert');
+  change(dates.map(d=>({k:'put',e:{id:uid(),date:d,...base,created:Date.now()}})),dates.length>1?`${dates.length} Trainings angelegt`:'Termin gespeichert');
 }
 document.addEventListener('change',ev=>{ if(ui.modal==='form'&&['fTour','fRepeat','fDate','fEnd','fDaily'].includes(ev.target.id)){ readForm(); renderModal(); } });
 document.addEventListener('keydown',ev=>{ if(ev.key==='Escape'&&ui.modal){ ui.modal=null; ui.form=null; renderModal(); } if(ev.key==='Enter'&&ev.target.id==='lToken'){ const b=document.querySelector('[data-act=login]'); if(b) b.click(); } });
