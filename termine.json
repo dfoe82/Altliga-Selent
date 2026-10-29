@@ -17,7 +17,6 @@
    "place": "OHLA Stadion",
    "note": "Tore müssen noch aufgebaut werden.",
    "meet": "18:00",
-   "meetAt": "OHLA Stadion",
    "home": true
   },
   {
@@ -613,5 +612,5 @@
    "venue": "out"
   }
  ],
- "updated": 1793279558545
+ "updated": 1793279596022
 }
