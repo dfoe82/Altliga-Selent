@@ -9,6 +9,18 @@
  },
  "events": [
   {
+   "id": "tcfg6aii1r",
+   "date": "2026-10-30",
+   "type": "game",
+   "time": "19:00",
+   "title": "Elmschenhagen",
+   "place": "OHLA Stadion",
+   "note": "Tore müssen noch aufgebaut werden.",
+   "meet": "18:00",
+   "meetAt": "OHLA Stadion",
+   "home": true
+  },
+  {
    "id": "t261103",
    "type": "training",
    "date": "2026-11-03",
@@ -601,5 +613,5 @@
    "venue": "out"
   }
  ],
- "updated": 0
+ "updated": 1793279558545
 }
