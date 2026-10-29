@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mannschaftstermine</title>
+<style>
+  :root {
+    --bg: #f4f6f3;
+    --card: #ffffff;
+    --text: #1d2a22;
+    --muted: #5d6b62;
+    --accent: #1f7a4a;
+    --accent-text: #ffffff;
+    --line: #dde3de;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121814;
+      --card: #1b231e;
+      --text: #e8eee9;
+      --muted: #9aa89f;
+      --accent: #3fae73;
+      --accent-text: #0c140f;
+      --line: #2c3730;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.45;
+  }
+  main { max-width: 520px; margin: 0 auto; padding: 28px 16px 40px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .all {
+    display: block;
+    text-align: center;
+    background: var(--accent);
+    color: var(--accent-text);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 18px;
+    border-radius: 14px;
+    margin-bottom: 28px;
+  }
+  h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+  .event {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    text-decoration: none;
+    color: inherit;
+  }
+  .date {
+    flex: 0 0 58px;
+    text-align: center;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    padding: 6px 0;
+  }
+  .date .d { font-size: 1.4rem; font-weight: 700; display: block; line-height: 1.1; }
+  .date .m { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; }
+  .info { flex: 1; min-width: 0; }
+  .info strong { display: block; }
+  .info span { color: var(--muted); font-size: 0.9rem; }
+  .plus { font-size: 1.6rem; color: var(--accent); font-weight: 600; }
+  .help { margin-top: 28px; font-size: 0.9rem; color: var(--muted); }
+  .help p { margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Termine zum Eintragen</h1>
+  <p class="sub">Bitte so einplanen!</p>
+
+  <a class="all" href="Mannschaft-Termine-2026-2027.ics">Alle 3 Termine in den Kalender</a>
+
+  <h2>Oder einzeln</h2>
+
+  <a class="event" href="Adventskalender-2026-12-22.ics">
+    <div class="date"><span class="d">22</span><span class="m">Dez 26</span></div>
+    <div class="info"><strong>Offener Adventskalender</strong><span>Dienstag – statt Training</span></div>
+    <div class="plus">+</div>
+  </a>
+
+  <a class="event" href="Osterfeuer-Selent-2027-03-28.ics">
+    <div class="date"><span class="d">28</span><span class="m">Mär 27</span></div>
+    <div class="info"><strong>Osterfeuer in Selent</strong><span>Ostersonntag</span></div>
+    <div class="plus">+</div>
+  </a>
+
+  <a class="event" href="Sylt-Altliga-Turnier-2027-06-19.ics">
+    <div class="date"><span class="d">19</span><span class="m">Jun 27</span></div>
+    <div class="info"><strong>Sylt Altliga Turnier</strong><span>Samstag – Sylt</span></div>
+    <div class="plus">+</div>
+  </a>
+
+  <div class="help">
+    <p><strong>iPhone:</strong> Seite in Safari öffnen, Button antippen, dann „Alle hinzufügen“.</p>
+    <p><strong>Android:</strong> Button antippen und die Datei mit dem Google Kalender öffnen.</p>
+  </div>
+</main>
+</body>
+</html>
