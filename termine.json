@@ -151,6 +151,18 @@
    "venue": "out"
   },
   {
+   "id": "p4zirctekf",
+   "date": "2027-01-21",
+   "type": "event",
+   "time": "15:00",
+   "title": "Altliga Dänemark-Tour",
+   "place": "",
+   "note": "",
+   "home": true,
+   "endTime": "13:00",
+   "end": "2027-01-24"
+  },
+  {
    "id": "ivumestdey",
    "date": "2027-01-21",
    "type": "event",
@@ -622,6 +634,6 @@
    "venue": "out"
   }
  ],
- "updated": 1793284592744,
+ "updated": 1793286600919,
  "kal": true
 }
