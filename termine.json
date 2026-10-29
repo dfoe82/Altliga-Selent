@@ -1,9 +1,9 @@
 {
  "v": 1,
- "appName": "Altliga-Termine",
- "teamName": "TSV Selent Altliga",
+ "appName": "Altliga",
+ "teamName": "TSV Selent",
  "venues": {
-  "out": "Schulsportplatz",
+  "out": "An der Schule",
   "in": "Halle",
   "alt": "OHLA Stadion"
  },
@@ -624,6 +624,7 @@
    "venue": "out"
   }
  ],
- "updated": 1793286664392,
- "kal": true
+ "updated": 1793288812190,
+ "kal": true,
+ "newDays": 14
 }
