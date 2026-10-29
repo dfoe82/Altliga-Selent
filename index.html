@@ -135,7 +135,7 @@ nav.tabbar svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width
    GitHub-Schlüssel direkt ins Repository (termine.json + termine.ics fürs
    Kalender-Abo). Nach etwa einer Minute sehen es alle.
    ========================================================================= */
-const APP_VERSION='1.33';
+const APP_VERSION='1.34';
 /* Repository: wird aus der Adresse erkannt (NAME.github.io/REPO/). Nur ändern, wenn das nicht passt. */
 const REPO_OVERRIDE={owner:'',repo:'',branch:'main'};
 
@@ -171,7 +171,7 @@ function normalize(d){
   d=d&&typeof d==='object'?d:{};
   return {v:1,appName:d.appName||'Altliga-Termine',teamName:d.teamName||'TSV Selent Altliga',
     venues:{out:'Schulsportplatz',in:'Halle',alt:'OHLA Stadion',...(d.venues||{})},
-    events:(Array.isArray(d.events)?d.events:[]).filter(e=>e&&e.id&&e.date&&ETYPE[e.type]),updated:d.updated||0};
+    events:(Array.isArray(d.events)?d.events:[]).filter(e=>e&&e.id&&e.date&&ETYPE[e.type]),updated:d.updated||0,kal:!!d.kal};
 }
 const venueName=k=>((D.venues||{})[k]||'').trim();
 const venueLabel=k=>k==='in'?'Halle':k==='alt'?(venueName('alt')||'Anderer Ort'):'Draußen';
@@ -302,6 +302,7 @@ function renderModal(){
   if(M==='login') body=loginBody();
   else if(M==='cal') body=calBody();
   else if(M==='form') body=formBody();
+  else if(M==='cal1') body=cal1Body(ui.cal1);
   m.innerHTML=`<div class="overlay" data-act="closeModal"><div class="sheet" role="dialog" aria-modal="true">${body}</div></div>`;
 }
 function loginBody(){
@@ -315,6 +316,32 @@ function loginBody(){
     ${r?'':'<p class="hint">Die Anmeldung mit Schlüssel geht erst, wenn die App auf GitHub Pages liegt.</p>'}
     <button class="linkbtn" data-act="localMode" style="justify-self:start">Ohne Schlüssel ausprobieren (nur auf diesem Gerät)</button>`;
 }
+/* Google Kalender: Termin-Vorlage, speichert direkt (Android, aber auch am PC) */
+function googleUrl(e){
+  const t=isTime(e.time)?e.time:'', mt=isTime(e.meet)&&(!t||e.meet<t)?e.meet:'', st=mt||t, d=e.date.replace(/-/g,'');
+  let dates;
+  if(st){ const end=new Date(Date.UTC(+e.date.slice(0,4),+e.date.slice(5,7)-1,+e.date.slice(8,10),+(t||st).slice(0,2),+(t||st).slice(3,5))+(ICS_DUR[e.type]||120)*60000);
+    dates=d+'T'+st.replace(':','')+'00/'+end.toISOString().slice(0,16).replace(/[-:]/g,'')+'00'; }
+  else dates=d+'/'+shiftDate(e.date,1).replace(/-/g,'');
+  const det=[e.meet||e.meetAt?'Treffen'+(e.meet?' '+e.meet:'')+(e.meetAt?', '+e.meetAt:''):'',e.meet&&t?startWord(e)+' '+t+' Uhr':'',e.note||''].filter(Boolean).join('\n');
+  const q=new URLSearchParams({action:'TEMPLATE',text:(e.cancel?'Abgesagt: ':'')+evTitle(e),dates,ctz:'Europe/Berlin',details:det,location:e.place||''});
+  return 'https://calendar.google.com/calendar/render?'+q.toString();
+}
+const isAndroid=()=>/Android/i.test(navigator.userAgent);
+function cal1Body(id){
+  const e=D.events.find(x=>x.id===id); if(!e) return '<p class="hint">Termin nicht gefunden.</p>';
+  const hosted=/^https:/.test(location.href)&&!!repo()&&D.kal;
+  const apple=hosted?`<a class="btn" href="kal/${encodeURIComponent(e.id)}.ics" target="_blank" rel="noopener">iPhone / iPad (Apple Kalender)</a>`
+    :`<button class="btn" data-act="ics1file" data-v="${e.id}">iPhone / iPad (Datei)</button>`;
+  const goog=`<a class="btn" href="${esc(googleUrl(e))}" target="_blank" rel="noopener">Google Kalender (Android)</a>`;
+  return `<h2>In Kalender eintragen</h2>
+    <p style="margin:0"><b>${esc(evTitle(e))}</b><br><span class="hint">${wd(e.date)}, ${fmtDate(e.date)} · ${[...timeBits(e),esc(e.place)].filter(Boolean).join(' · ')}</span></p>
+    <div style="display:grid;gap:8px">${isAndroid()?goog+apple:apple+goog}
+      <button class="btn ghost" data-act="ics1file" data-v="${e.id}">Als Datei (Outlook, andere)</button></div>
+    <p class="hint">${hosted?'iPhone: Es öffnet sich der Termin – unten auf <b>„Zum Kalender hinzufügen“</b> tippen.':'iPhone: Die Datei öffnen und „Zum Kalender hinzufügen“ wählen. Klappt das nicht, das Kalender-Abo nutzen.'} Android: Mit Google anmelden und <b>Speichern</b> tippen.</p>
+    <p class="hint">Tipp: Mit dem <b>Kalender-Abo</b> (Termine → 📅 In meinen Kalender) stehen alle Termine automatisch im Kalender – auch spätere Änderungen.</p>
+    <button class="btn ghost" data-act="closeModal">Schließen</button>`;
+}
 function pageBase(){ const u=new URL('.',location.href); return u.href; }
 function calBody(){
   const hosted=/^https:/.test(location.href)&&!!repo(), ics=pageBase()+'termine.ics', web=ics.replace(/^https:/,'webcal:');
@@ -324,7 +351,7 @@ function calBody(){
     <p class="hint">Outlook oder anderes Programm: diese Adresse abonnieren</p><div class="row"><span class="code">${esc(ics)}</span><button class="btn ghost sm" data-act="copyIcs">Kopieren</button></div>`
     :'<p class="hint">Das Abo gibt es, sobald die App auf GitHub Pages liegt.</p>'}
     <p class="hint"><b>Einmalig übernehmen:</b> alle Termine als Datei – ändert sich danach nicht mehr.</p>
-    <div class="row"><button class="btn ghost" data-act="icsAll">Alle Termine als Datei</button><button class="btn ghost" data-act="closeModal">Schließen</button></div>`;
+    <div class="row">${hosted?`<a class="btn ghost" href="termine.ics" target="_blank" rel="noopener">Alle Termine übernehmen</a>`:'<button class="btn ghost" data-act="icsAll">Alle Termine als Datei</button>'}<button class="btn ghost" data-act="closeModal">Schließen</button></div>`;
 }
 const blank=()=>({id:'',type:'training',date:TODAY,time:'19:00',meet:'',meetAt:'',title:'',home:true,tour:false,place:'',note:'',venue:'out',cancel:false,repeat:false,until:''});
 function formBody(){
@@ -386,26 +413,43 @@ async function putFile(name,text,sha,msg){
   if(!res.ok){ const e=new Error('put '+res.status); e.status=res.status; throw e; }
   return res.json();
 }
-async function flush(){
-  if(ADM.saving||!ADM.queue.length||ADM.local) return;
+async function ghJ(path,opt={}){
+  const res=await gh(path,opt.body?{...opt,body:JSON.stringify(opt.body)}:opt);
+  if(!res.ok){ const e=new Error(path+' '+res.status); e.status=res.status; throw e; }
+  return res.status===204?null:res.json();
+}
+/* Ein einziger Commit mit allen Dateien: termine.json, termine.ics (Abo) und kal/<id>.ics je Termin.
+   Die Einzeldateien braucht das iPhone: nur eine echte Datei im Netz kann es in den Kalender übernehmen. */
+async function commitAll(ops){
+  const r=repo();
+  const ref=await ghJ(`/git/ref/heads/${encodeURIComponent(r.branch)}`), head=ref.object.sha;
+  const com=await ghJ(`/git/commits/${head}`);
+  const tr=await ghJ(`/git/trees/${com.tree.sha}?recursive=1`), paths=new Set((tr.tree||[]).map(x=>x.path));
+  let base=null;
+  if(paths.has('termine.json')){ const f=await ghJ(`/contents/termine.json?ref=${head}`); try{ base=JSON.parse(unb64(f.content)); }catch(e){} }
+  const next=normalize(base||D); ops.forEach(op=>applyOp(next,op)); next.updated=Date.now(); next.kal=true; next.events.sort(sortUp);
+  const files=[{path:'termine.json',content:JSON.stringify(next,null,1)+'\n'},{path:'termine.ics',content:icsText(next.events.filter(e=>e.date>=shiftDate(TODAY,-60)),next.appName)}];
+  const want=new Set(next.events.map(e=>'kal/'+e.id+'.ics'));
+  next.events.forEach(e=>files.push({path:'kal/'+e.id+'.ics',content:icsText([e],next.appName)}));
+  [...paths].filter(p=>/^kal\/[^/]+\.ics$/.test(p)&&!want.has(p)).forEach(p=>files.push({path:p,sha:null}));
+  const tree=await ghJ('/git/trees',{method:'POST',body:{base_tree:com.tree.sha,tree:files.map(f=>({path:f.path,mode:'100644',type:'blob',...(f.sha===null?{sha:null}:{content:f.content})}))}});
+  const nc=await ghJ('/git/commits',{method:'POST',body:{message:ops.length?`Termine aktualisiert (${ops.length} Änderung${ops.length>1?'en':''})`:'Kalenderdateien angelegt',tree:tree.sha,parents:[head]}});
+  await ghJ(`/git/refs/heads/${encodeURIComponent(r.branch)}`,{method:'PATCH',body:{sha:nc.sha,force:false}});
+  return next;
+}
+async function flush(force){
+  if(ADM.saving||ADM.local||(!ADM.queue.length&&!force)) return;
   ADM.saving=true; ADM.status={k:'busy',t:'Wird gespeichert …'}; render();
   const ops=ADM.queue.slice();
   try{
-    for(let attempt=0;attempt<3;attempt++){
-      const cur=await getFile('termine.json');
-      let base=null; try{ base=cur.text?JSON.parse(cur.text):null; }catch(e){}
-      const next=normalize(base||D); ops.forEach(op=>applyOp(next,op)); next.updated=Date.now();
-      next.events.sort(sortUp);
-      try{
-        await putFile('termine.json',JSON.stringify(next,null,1)+'\n',cur.sha,`Termine aktualisiert (${ops.length} Änderung${ops.length>1?'en':''})`);
-        D=next; ADM.queue.splice(0,ops.length);
-        try{ const ic=await getFile('termine.ics'); await putFile('termine.ics',icsText(next.events.filter(e=>e.date>=shiftDate(TODAY,-60)),next.appName),ic.sha,'Kalender aktualisiert'); }catch(e){ console.warn('ics',e); }
-        ADM.status={k:'ok',t:'✓ Gespeichert – für alle sichtbar in etwa einer Minute.'}; break;
-      }catch(e){ if((e.status===409||e.status===422)&&attempt<2) continue; throw e; }
+    for(let attempt=0;;attempt++){
+      try{ const next=await commitAll(ops); D=next; ADM.queue.splice(0,ops.length); break; }
+      catch(e){ if((e.status===409||e.status===422)&&attempt<2) continue; throw e; }
     }
+    ADM.status={k:'ok',t:ops.length?'✓ Gespeichert – für alle sichtbar in etwa einer Minute.':'✓ Kalenderdateien angelegt.'};
   }catch(e){
     console.error(e);
-    ADM.status={k:'err',t:e.status===401||e.status===403?'Speichern abgelehnt – der GitHub-Schlüssel ist ungültig, abgelaufen oder hat keine Schreibrechte.':'Nicht gespeichert – keine Verbindung zu GitHub. Deine Änderungen bleiben auf diesem Gerät, bis es klappt.'};
+    ADM.status={k:'err',t:e.status===401||e.status===403||e.status===404?'Speichern abgelehnt – der GitHub-Schlüssel ist ungültig, abgelaufen oder hat keine Schreibrechte.':'Nicht gespeichert – keine Verbindung zu GitHub. Deine Änderungen bleiben auf diesem Gerät, bis es klappt.'};
     ls.set('at-queue',JSON.stringify(ADM.queue));
   }
   ADM.saving=false; if(!ADM.queue.length) ls.set('at-queue',null); render();
@@ -421,6 +465,7 @@ async function checkToken(tok,silent){
     if(!(j.permissions&&j.permissions.push)) throw Object.assign(new Error('perm'),{status:403});
     ADM.ok=true; ADM.status=null;
     try{ const q=JSON.parse(ls.get('at-queue')||'[]'); if(q.length){ ADM.queue.push(...q); q.forEach(op=>applyOp(D,op)); scheduleSave(); } }catch(e){}
+    if(!ADM.queue.length&&!D.kal) setTimeout(()=>flush(true),300);
     render(); return true;
   }catch(e){
     ADM.ok=false; if(!silent) ADM.status={k:'err',login:true,t:e.status===401?'Der Schlüssel ist ungültig oder abgelaufen.':e.status===403||e.status===404?'Mit diesem Schlüssel kann dieses Repository nicht geändert werden. Bitte Rechte prüfen (Contents: Read and write).':'Keine Verbindung zu GitHub. Bitte später erneut versuchen.'};
@@ -475,7 +520,8 @@ document.addEventListener('click',async ev=>{
     case 'closeModal': ui.modal=null; ui.form=null; if(ADM.status&&ADM.status.login) ADM.status=null; renderModal(); break;
     case 'copyIcs': copy(pageBase()+'termine.ics','Adresse kopiert'); break;
     case 'icsAll': download('termine.ics',icsText(D.events,D.appName),'text/calendar'); break;
-    case 'ics1': { const e=D.events.find(x=>x.id===v); if(e) download('termin-'+e.date+'.ics',icsText([e],D.appName),'text/calendar'); break; }
+    case 'ics1': ui.cal1=v; ui.modal='cal1'; renderModal(); break;
+    case 'ics1file': { const e=D.events.find(x=>x.id===v); if(e) download('termin-'+e.date+'.ics',icsText([e],D.appName),'text/calendar'); break; }
     case 'download': download('termine.json',JSON.stringify(D,null,1)+'\n','application/json'); break;
     case 'login': {
       const tok=(document.getElementById('lToken').value||'').trim(), keep=document.getElementById('lKeep').checked;

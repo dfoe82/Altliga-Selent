@@ -13,6 +13,7 @@ Diese Version ist der **Zwischenschritt**: nur **Übersicht** (die nächsten 5 T
 | `index.html` | Die App |
 | `termine.json` | Die Termine. Die App liest und schreibt diese Datei. |
 | `termine.ics` | Für das Kalender-Abo. Die App aktualisiert sie beim Speichern selbst. |
+| Ordner `kal` (entsteht von selbst) | Je Termin eine Kalenderdatei, damit das iPhone einzelne Termine speichern kann. |
 
 ---
 
@@ -63,7 +64,10 @@ Unter **📅 In meinen Kalender**:
 
 - **Abo** für iPhone und Android (Google Kalender): Die Termine erscheinen im Kalender und aktualisieren sich selbst. Das iPhone prüft etwa alle paar Stunden, Google manchmal seltener.
 - **Einmalig als Datei:** übernimmt den aktuellen Stand, ändert sich danach nicht mehr.
-- An jedem Termin: **📅 In Kalender eintragen** für einen einzelnen Termin.
+- An jedem Termin: **📅 In Kalender eintragen** für einen einzelnen Termin:
+  - **iPhone / iPad:** Der Termin öffnet sich, unten auf **„Zum Kalender hinzufügen“** tippen. Dafür legt die App beim **ersten Admin-Login** im Ordner `kal` je Termin eine kleine Kalenderdatei an und hält sie danach selbst aktuell. Du musst nichts hochladen.
+  - **Android:** **Google Kalender** öffnet den fertigen Termin, dort **Speichern** tippen.
+  - **Als Datei:** für Outlook und andere Programme.
 
 ## 6. Später: Umstieg auf die Version mit Firebase
 
