@@ -28,7 +28,11 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in",
+   "chg": {
+    "venue": "out"
+   },
+   "changed": 1793374353562
   },
   {
    "id": "t261110",
@@ -624,7 +628,7 @@
    "venue": "out"
   }
  ],
- "updated": 1793288812190,
+ "updated": 1793374356650,
  "kal": true,
  "newDays": 14
 }
