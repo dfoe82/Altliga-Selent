@@ -70,6 +70,17 @@
    "venue": "in"
   },
   {
+   "id": "3kfi99u3b7",
+   "date": "2026-11-27",
+   "type": "event",
+   "time": "18:00",
+   "title": "Weihnachtsmarkt",
+   "place": "Selent",
+   "note": "",
+   "home": true,
+   "end": "2026-11-29"
+  },
+  {
    "id": "t261201",
    "type": "training",
    "date": "2026-12-01",
@@ -630,7 +641,7 @@
    "venue": "out"
   }
  ],
- "updated": 1793404608222,
+ "updated": 1793404765248,
  "kal": true,
  "season": "year",
  "newDays": 14
