@@ -142,7 +142,7 @@ nav.tabbar svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width
    GitHub-Schlüssel direkt ins Repository (termine.json + termine.ics fürs
    Kalender-Abo). Nach etwa einer Minute sehen es alle.
    ========================================================================= */
-const APP_VERSION='1.38';
+const APP_VERSION='1.40';
 /* Repository: wird aus der Adresse erkannt (NAME.github.io/REPO/). Nur ändern, wenn das nicht passt. */
 const REPO_OVERRIDE={owner:'',repo:'',branch:'main'};
 
@@ -283,7 +283,7 @@ function eventsView(){
   const up=all.filter(e=>lastDay(e)>=TODAY).sort(sortUp), past=all.filter(e=>lastDay(e)<TODAY).sort((a,b)=>sortUp(b,a));
   const cnt=t=>D.events.filter(e=>t==='all'||e.type===t).length;
   return `${adminBar()}<div class="panel">
-    <div class="row spread"><h2>Termine</h2><div class="row"><button class="btn ghost sm" data-act="calOpen">📅 In meinen Kalender</button>${isAdmin()?'<button class="btn sm" data-act="new">+ Termin</button>':''}</div></div>
+    <div class="row spread"><h2>Termine</h2><div class="row"><button class="btn ghost sm" data-act="calOpen">📅 In meinen Kalender</button>${isAdmin()?'<button class="btn ghost sm" data-act="bulk">Mehrere ändern</button><button class="btn sm" data-act="new">+ Termin</button>':''}</div></div>
     <div class="seg" role="group" aria-label="Filter">${[['all','Alle'],['game','Spiele'],['training','Training'],['event','Events']].map(([k,l])=>`<button data-act="filter" data-v="${k}" aria-pressed="${f===k}">${l} ${cnt(k)}</button>`).join('')}</div>
     <h3>Kommend</h3>
     ${up.length?`<div class="evlist">${up.map((e,i)=>evCard(e,i===0?'next':'',i===0)).join('')}</div>`:'<p class="hint">Keine kommenden Termine.</p>'}
@@ -348,6 +348,56 @@ function render(){
 let tt=null; function toast(t){const el=document.getElementById('toast'); el.textContent=t; el.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('on'),2600);}
 
 /* ---------- Dialoge ---------- */
+/* ---------- Mehrere Termine auf einmal ändern (z. B. im Winter alle Trainings in die Halle) ---------- */
+const bulkBlank=()=>({type:'training',from:TODAY,to:'',wd:'',venue:'',time:'',meet:'',meetAt:'',place:'',cancel:'',note:'',quiet:false,off:[]});
+const isHM=x=>/^\d\d:\d\d$/.test(x||'');
+function bulkMatch(b){
+  return D.events.filter(e=>(b.type==='all'||e.type===b.type)&&lastDay(e)>=(b.from||TODAY)&&(!b.to||e.date<=b.to)&&(b.wd===''||new Date(e.date+'T12:00').getDay()===+b.wd))
+    .sort((x,y)=>(x.date+(x.time||'')).localeCompare(y.date+(y.time||'')));
+}
+function bulkRead(){
+  const b=ui.bulk, g=id=>document.getElementById(id); if(!b) return;
+  [['bType','type'],['bFrom','from'],['bTo','to'],['bWd','wd'],['bVenue','venue'],['bTime','time'],['bMeet','meet'],['bMeetAt','meetAt'],['bPlace','place'],['bCancel','cancel'],['bNote','note']].forEach(([id,k])=>{ if(g(id)) b[k]=g(id).value; });
+  if(g('bQuiet')) b.quiet=g('bQuiet').checked;
+  const boxes=[...document.querySelectorAll('.bEx')]; if(boxes.length) b.off=boxes.filter(x=>!x.checked).map(x=>x.dataset.id);
+}
+function bulkApply(e,b){
+  const n=JSON.parse(JSON.stringify(e));
+  if(b.venue&&n.type==='training'){ const old=venueName(n.venue||'out'); n.venue=b.venue; if(!n.place||n.place===old) n.place=venueName(b.venue)||n.place; }
+  if(isHM(b.time)) n.time=b.time;
+  if(isHM(b.meet)) n.meet=b.meet;
+  if((b.meetAt||'').trim()) n.meetAt=b.meetAt.trim()==='-'?'':b.meetAt.trim().slice(0,60);
+  if((b.place||'').trim()) n.place=b.place.trim().slice(0,60);
+  if(b.cancel==='x') n.cancel=true; else if(b.cancel==='ok') delete n.cancel;
+  if((b.note||'').trim()) n.note=b.note.trim()==='-'?'':b.note.trim().slice(0,120);
+  if(!n.meetAt) delete n.meetAt;
+  if(!b.quiet) markChange(e,n);
+  return n;
+}
+function bulkChanges(b){
+  return bulkMatch(b).filter(e=>!b.off.includes(e.id)).map(e=>[e,bulkApply(e,b)]).filter(([e,n])=>JSON.stringify(e)!==JSON.stringify(n));
+}
+function bulkBody(){
+  const b=ui.bulk, list=bulkMatch(b), sel=list.filter(e=>!b.off.includes(e.id)).length;
+  const opt=(v,l,cur)=>`<option value="${v}" ${String(cur)===String(v)?'selected':''}>${l}</option>`;
+  const WDL=['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+  return `<h2>Mehrere Termine ändern</h2>
+    <p class="hint">Zum Beispiel im Winter alle Trainings in die Halle verlegen. Felder, die leer bleiben, werden nicht verändert.</p>
+    <h3>Welche Termine?</h3>
+    <div class="two"><label class="f">Art<select id="bType">${opt('training','Training',b.type)}${opt('game','Spiele & Turniere',b.type)}${opt('event','Events',b.type)}${opt('all','Alle',b.type)}</select></label>
+      <label class="f">Wochentag<select id="bWd">${opt('','Alle Tage',b.wd)}${[1,2,3,4,5,6,0].map(i=>opt(i,WDL[i],b.wd)).join('')}</select></label></div>
+    <div class="two"><label class="f">Von<input type="date" id="bFrom" value="${esc(b.from||'')}"></label><label class="f">Bis<input type="date" id="bTo" value="${esc(b.to||'')}"></label></div>
+    <h3>Was ändern?</h3>
+    ${b.type==='training'||b.type==='all'?`<label class="f">Trainingsort<select id="bVenue">${opt('','– bleibt –',b.venue)}${venueKeys().map(k=>opt(k,esc(venueLabel(k)),b.venue)).join('')}</select></label>`:''}
+    <div class="two"><label class="f">Beginn / Anpfiff<input type="time" id="bTime" value="${esc(b.time||'')}"></label><label class="f">Treffen um<input type="time" id="bMeet" value="${esc(b.meet||'')}"></label></div>
+    <div class="two"><label class="f">Treffpunkt<input type="text" id="bMeetAt" maxlength="60" value="${esc(b.meetAt||'')}" placeholder="– bleibt –"></label><label class="f">Ort<input type="text" id="bPlace" maxlength="60" value="${esc(b.place||'')}" placeholder="– bleibt –"></label></div>
+    <div class="two"><label class="f">Notiz<input type="text" id="bNote" maxlength="120" value="${esc(b.note||'')}" placeholder="– bleibt – („-“ löscht)"></label>
+      <label class="f">Absage<select id="bCancel">${opt('','– bleibt –',b.cancel)}${opt('x','Fällt aus / abgesagt',b.cancel)}${opt('ok','Findet statt',b.cancel)}</select></label></div>
+    ${D.newDays?`<label class="check"><input type="checkbox" id="bQuiet" ${b.quiet?'checked':''}> Still speichern – nicht als „Geändert“ markieren</label>`:''}
+    <details ${list.length&&list.length<=12?'open':''}><summary><b id="bCount">${sel} von ${list.length} Terminen ausgewählt</b> – antippen zum Anzeigen und Abwählen</summary>
+      <div style="display:grid;gap:4px;margin-top:6px;max-height:260px;overflow:auto">${list.map(e=>`<label class="check" style="font-size:14px"><input type="checkbox" class="bEx" data-id="${e.id}" ${b.off.includes(e.id)?'':'checked'}> <span>${WD[new Date(e.date+'T12:00').getDay()]} ${fmtDate(e.date).slice(0,6)} · ${esc(evTitle(e))}${e.time?' · '+e.time:''}${e.type==='training'?' · '+esc(venueLabel(e.venue||'out')):''}${e.cancel?' · <b>fällt aus</b>':''}</span></label>`).join('')||'<span class="hint">Keine passenden Termine.</span>'}</div></details>
+    <div class="row"><button type="button" class="btn" data-act="bulkGo" ${sel?'':'disabled'}>Ändern</button><button type="button" class="btn ghost" data-act="closeModal">Abbrechen</button></div>`;
+}
 function renderModal(){
   const m=document.getElementById('modal'), M=ui.modal;
   document.body.classList.toggle('modal',!!M);
@@ -357,6 +407,7 @@ function renderModal(){
   else if(M==='cal') body=calBody();
   else if(M==='form') body=formBody();
   else if(M==='cal1') body=cal1Body(ui.cal1);
+  else if(M==='bulk') body=bulkBody();
   m.innerHTML=`<div class="overlay" data-act="closeModal"><div class="sheet" role="dialog" aria-modal="true">${body}</div></div>`;
 }
 function loginBody(){
@@ -415,7 +466,7 @@ function calBody(){
     <p class="hint"><b>Einmalig übernehmen:</b> alle Termine als Datei – ändert sich danach nicht mehr.</p>
     <div class="row">${hosted?`<a class="btn ghost" href="termine.ics" target="_blank" rel="noopener">Alle Termine übernehmen</a>`:'<button class="btn ghost" data-act="icsAll">Alle Termine als Datei</button>'}<button class="btn ghost" data-act="closeModal">Schließen</button></div>`;
 }
-const blank=()=>({end:'',endTime:'',daily:false,id:'',type:'training',date:TODAY,time:'19:00',meet:'',meetAt:'',title:'',home:true,tour:false,place:'',note:'',venue:'out',cancel:false,repeat:false,until:''});
+const blank=()=>({quiet:false,clearMark:false,end:'',endTime:'',daily:false,id:'',type:'training',date:TODAY,time:'19:00',meet:'',meetAt:'',title:'',home:true,tour:false,place:'',note:'',venue:'out',cancel:false,repeat:false,until:''});
 function formBody(){
   const f=ui.form, t=f.type, edit=!!f.id;
   return `<h2>${edit?'Termin bearbeiten':'Neuer Termin'}</h2>
@@ -435,6 +486,8 @@ function formBody(){
     <label class="f">Ort<input id="fPlace" maxlength="60" value="${esc(f.place)}" placeholder="${t==='event'?'z. B. Vereinsheim':'z. B. Sportplatz'}"></label>
     <label class="f">Notiz<input id="fNote" maxlength="120" value="${esc(f.note)}" placeholder="z. B. Statt Training, Fahrgemeinschaften"></label>
     ${edit?`<label class="check"><input type="checkbox" id="fCancel" ${f.cancel?'checked':''}> ${t==='game'?'Spiel ist abgesagt':(t==='training'?'Training':'Event')+' fällt aus'}</label>`:''}
+    ${D.newDays?`<label class="check"><input type="checkbox" id="fQuiet" ${f.quiet?'checked':''}> ${edit?'Still speichern – nicht als „Geändert“ markieren':'Nicht als „Neu“ markieren'}</label>`:''}
+    ${edit&&D.newDays&&(()=>{const o=D.events.find(x=>x.id===f.id); return o&&(isNew(o)||isChg(o));})()?`<label class="check"><input type="checkbox" id="fClear" ${f.clearMark?'checked':''}> Vorhandene Markierung „${(()=>{const o=D.events.find(x=>x.id===f.id); return isNew(o)?'Neu':'Geändert';})()}“ entfernen</label>`:''}
     ${t==='training'&&!edit?`<label class="check"><input type="checkbox" id="fRepeat" ${f.repeat?'checked':''}> Jede Woche wiederholen (Serie)</label>
       ${f.repeat?`<label class="f">Bis einschließlich<input type="date" id="fUntil" value="${esc(f.until||shiftDate(f.date,364))}"></label><p class="hint">${seriesDates(f.date,f.until||shiftDate(f.date,364)).length} Trainings am ${wd(f.date)}, höchstens 60.</p>`:''}`:''}
     <div class="row"><button class="btn" data-act="saveForm">Speichern</button><button class="btn ghost" data-act="closeModal">Abbrechen</button></div>`;
@@ -444,7 +497,7 @@ function seriesDates(from,until){const o=[]; for(let d=from;d<=(until||from)&&o.
 function readForm(){
   const f=ui.form, g=id=>document.getElementById(id);
   if(!f) return; [['fDate','date'],['fEnd','end'],['fEndTime','endTime'],['fTime','time'],['fMeet','meet'],['fMeetAt','meetAt'],['fTitle','title'],['fPlace','place'],['fNote','note'],['fUntil','until']].forEach(([id,k])=>{ if(g(id)) f[k]=g(id).value; });
-  [['fTour','tour'],['fCancel','cancel'],['fRepeat','repeat'],['fDaily','daily']].forEach(([id,k])=>{ if(g(id)) f[k]=g(id).checked; });
+  [['fTour','tour'],['fCancel','cancel'],['fRepeat','repeat'],['fDaily','daily'],['fQuiet','quiet'],['fClear','clearMark']].forEach(([id,k])=>{ if(g(id)) f[k]=g(id).checked; });
 }
 
 /* ---------- Änderungen ---------- */
@@ -600,6 +653,7 @@ document.addEventListener('click',async ev=>{
   const a=el.dataset.act, v=el.dataset.v;
   if(a==='closeModal'&&el.classList.contains('overlay')&&ev.target!==el) return;
   if(ui.modal==='form'&&a!=='closeModal') readForm();
+  if(ui.modal==='bulk'&&a!=='closeModal') bulkRead();
   switch(a){
     case 'goto': ui.tab=v; render(); scrollTo(0,0); break;
     case 'filter': ui.filter=v; render(); break;
@@ -624,6 +678,9 @@ document.addEventListener('click',async ev=>{
       ADM.ok=false; ADM.local=false; ADM.token=''; ADM.status=null; ADM.queue=[]; ls.set('at-token',null); ls.set('at-local',null); ls.set('at-localdata',null); ls.set('at-queue',null);
       ui.tab=ui.tab==='settings'?'home':ui.tab; toast('Abgemeldet'); load(); break;
     case 'retry': flush(); break;
+    case 'bulk': ui.bulk=bulkBlank(); ui.modal='bulk'; renderModal(); break;
+    case 'bulkGo': { const ch=bulkChanges(ui.bulk); if(!ch.length) return toast('Nichts zu ändern – bitte mindestens ein Feld ausfüllen');
+      ui.modal=null; ui.bulk=null; change(ch.map(([,n])=>({k:'put',e:n})),`${ch.length} Termin${ch.length>1?'e':''} geändert`); break; }
     case 'newDays': change([{k:'set',v:{newDays:+v}}],+v?`Neue Termine ${+v===7?'1 Woche':'2 Wochen'} markiert`:'Neu-Markierung aus'); break;
     case 'hist': loadHistory(); break;
     case 'askRestore': ui.confirm='rs:'+v; render(); break;
@@ -661,14 +718,14 @@ function saveForm(){
   if(isMulti&&dayList(f.date,f.end).length>=14&&f.end>shiftDate(f.date,13)) return toast('Höchstens 14 Tage');
   if(isTime(f.endTime)) base.endTime=f.endTime;
   if(isMulti&&f.daily&&!f.id){ const days=dayList(f.date,f.end); ui.modal=null; ui.form=null;
-    change(days.map(d=>({k:'put',e:{id:uid(),date:d,...base,created:Date.now()}})),`${days.length} Termine angelegt (je Tag einer)`); return; }
+    change(days.map(d=>({k:'put',e:{id:uid(),date:d,...base,...(f.quiet?{}:{created:Date.now()})}})),`${days.length} Termine angelegt (je Tag einer)`); return; }
   if(isMulti) base.end=f.end;
-  if(f.id){ const n={id:f.id,date:f.date,...base}; if(f.created) n.created=f.created; if(f.cancel) n.cancel=true; const oe=D.events.find(x=>x.id===f.id); if(oe) markChange(oe,n); ui.modal=null; ui.form=null; change([{k:'put',e:n}],'Termin gespeichert'); return; }
+  if(f.id){ const n={id:f.id,date:f.date,...base}; if(f.created) n.created=f.created; if(f.cancel) n.cancel=true; const oe=D.events.find(x=>x.id===f.id); if(oe){ if(f.quiet){ if(oe.chg){ n.chg=oe.chg; n.changed=oe.changed; } } else markChange(oe,n); } if(f.clearMark){ delete n.created; delete n.chg; delete n.changed; } ui.modal=null; ui.form=null; change([{k:'put',e:n}],'Termin gespeichert'); return; }
   const dates=t==='training'&&f.repeat?seriesDates(f.date,f.until||shiftDate(f.date,364)):[f.date];
   ui.modal=null; ui.form=null;
-  change(dates.map(d=>({k:'put',e:{id:uid(),date:d,...base,created:Date.now()}})),dates.length>1?`${dates.length} Trainings angelegt`:'Termin gespeichert');
+  change(dates.map(d=>({k:'put',e:{id:uid(),date:d,...base,...(f.quiet?{}:{created:Date.now()})}})),dates.length>1?`${dates.length} Trainings angelegt`:'Termin gespeichert');
 }
-document.addEventListener('change',ev=>{ if(ui.modal==='form'&&['fTour','fRepeat','fDate','fEnd','fDaily'].includes(ev.target.id)){ readForm(); renderModal(); } });
+document.addEventListener('change',ev=>{ if(ui.modal==='bulk'){ bulkRead(); if(['bType','bFrom','bTo','bWd'].includes(ev.target.id)) renderModal(); else { const c=document.getElementById('bCount'), l=bulkMatch(ui.bulk); if(c) c.textContent=`${l.filter(e=>!ui.bulk.off.includes(e.id)).length} von ${l.length} Terminen ausgewählt`; } return; } if(ui.modal==='form'&&['fTour','fRepeat','fDate','fEnd','fDaily'].includes(ev.target.id)){ readForm(); renderModal(); } });
 document.addEventListener('keydown',ev=>{ if(ev.key==='Escape'&&ui.modal){ ui.modal=null; ui.form=null; renderModal(); } if(ev.key==='Enter'&&ev.target.id==='lToken'){ const b=document.querySelector('[data-act=login]'); if(b) b.click(); } });
 window.addEventListener('beforeunload',e=>{ if(ADM.queue.length){ e.preventDefault(); e.returnValue=''; } });
 load();
