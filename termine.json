@@ -17,7 +17,13 @@
    "place": "OHLA Stadion",
    "note": "Tore müssen noch aufgebaut werden.",
    "meet": "18:00",
-   "home": true
+   "home": true,
+   "sc": [
+    5,
+    1
+   ],
+   "result": "5:1",
+   "scorers": "Joyce, Felix, Felix, Carsten, Schie"
   },
   {
    "id": "t261103",
@@ -624,7 +630,8 @@
    "venue": "out"
   }
  ],
- "updated": 1793379864536,
+ "updated": 1793404184846,
  "kal": true,
+ "season": "season",
  "newDays": 14
 }
