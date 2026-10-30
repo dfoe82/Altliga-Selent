@@ -32,7 +32,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -43,7 +43,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -54,7 +54,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -65,7 +65,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -76,7 +76,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -87,7 +87,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -98,7 +98,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -119,7 +119,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -130,7 +130,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -141,7 +141,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -152,7 +152,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -175,7 +175,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -186,7 +186,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -197,7 +197,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -208,7 +208,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -219,7 +219,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -230,7 +230,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -241,7 +241,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -252,7 +252,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -263,7 +263,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -284,7 +284,7 @@
    "time": "19:00",
    "title": "",
    "home": true,
-   "place": "Schulsportplatz",
+   "place": "Sporthalle",
    "note": "",
    "venue": "in"
   },
@@ -630,7 +630,7 @@
    "venue": "out"
   }
  ],
- "updated": 1793404467172,
+ "updated": 1793404608222,
  "kal": true,
  "season": "year",
  "newDays": 14
