@@ -13,7 +13,7 @@
    "date": "2026-10-30",
    "type": "game",
    "time": "19:00",
-   "title": "Elmschenhagen",
+   "title": "TuS Schwarz-Weiß Elmschenhagen",
    "place": "OHLA Stadion",
    "note": "Tore müssen noch aufgebaut werden.",
    "meet": "18:00",
@@ -28,11 +28,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "in",
-   "chg": {
-    "venue": "out"
-   },
-   "changed": 1793374353562
+   "venue": "out"
   },
   {
    "id": "t261110",
@@ -628,7 +624,7 @@
    "venue": "out"
   }
  ],
- "updated": 1793374356650,
+ "updated": 1793374434197,
  "kal": true,
  "newDays": 14
 }
