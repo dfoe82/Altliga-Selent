@@ -78,7 +78,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t261208",
@@ -89,7 +89,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t261215",
@@ -100,7 +100,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "e261222",
@@ -121,7 +121,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t270105",
@@ -132,7 +132,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t270112",
@@ -143,7 +143,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t270119",
@@ -154,7 +154,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "p4zirctekf",
@@ -177,7 +177,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t270202",
@@ -188,7 +188,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t270209",
@@ -199,7 +199,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t270216",
@@ -210,7 +210,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t270223",
@@ -221,7 +221,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t270302",
@@ -232,7 +232,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t270309",
@@ -243,7 +243,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t270316",
@@ -254,7 +254,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t270323",
@@ -265,7 +265,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "e270328",
@@ -286,7 +286,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t270406",
@@ -630,7 +630,7 @@
    "venue": "out"
   }
  ],
- "updated": 1793404395512,
+ "updated": 1793404467172,
  "kal": true,
  "season": "year",
  "newDays": 14
