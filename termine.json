@@ -28,7 +28,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t261110",
@@ -39,7 +39,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t261117",
@@ -50,7 +50,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t261124",
@@ -61,7 +61,7 @@
    "home": true,
    "place": "Schulsportplatz",
    "note": "",
-   "venue": "out"
+   "venue": "in"
   },
   {
    "id": "t261201",
@@ -624,7 +624,7 @@
    "venue": "out"
   }
  ],
- "updated": 1793374434197,
+ "updated": 1793379864536,
  "kal": true,
  "newDays": 14
 }
