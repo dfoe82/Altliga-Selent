@@ -92,6 +92,16 @@
    "venue": "in"
   },
   {
+   "id": "hnaidtjzm9",
+   "date": "2026-12-05",
+   "type": "event",
+   "time": "19:00",
+   "title": "Weihnachtsfeier",
+   "place": "Selenter Hof",
+   "note": "",
+   "home": true
+  },
+  {
    "id": "t261208",
    "type": "training",
    "date": "2026-12-08",
@@ -641,7 +651,7 @@
    "venue": "out"
   }
  ],
- "updated": 1793404765248,
+ "updated": 1793404994388,
  "kal": true,
  "season": "year",
  "newDays": 14
